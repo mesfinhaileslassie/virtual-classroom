@@ -6,6 +6,7 @@ import CssBaseline from '@mui/material/CssBaseline';
 
 // Context
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { DiscussionProvider } from './context/DiscussionContext'; // Add this import
 
 // Layout
 import Navbar from './components/layout/Navbar';
@@ -19,6 +20,9 @@ import ClassDetail from './pages/ClassDetail';
 import Profile from './pages/Profile';
 import TeacherDashboard from './pages/TeacherDashboard';
 import StudentDashboard from './pages/StudentDashboard';
+
+// Discussion Components
+import DiscussionThread from './components/discussions/DiscussionThread';
 
 const theme = createTheme({
   palette: {
@@ -89,6 +93,13 @@ function AppContent() {
             <StudentDashboard />
           </ProtectedRoute>
         } />
+
+        {/* Discussion Route */}
+        <Route path="/discussions/:id" element={
+          <ProtectedRoute>
+            <DiscussionThread />
+          </ProtectedRoute>
+        } />
       </Routes>
     </>
   );
@@ -100,8 +111,10 @@ function App() {
       <CssBaseline />
       <Router>
         <AuthProvider>
-          <Toaster position="top-right" />
-          <AppContent />
+          <DiscussionProvider> {/* Add DiscussionProvider here */}
+            <Toaster position="top-right" />
+            <AppContent />
+          </DiscussionProvider>
         </AuthProvider>
       </Router>
     </ThemeProvider>

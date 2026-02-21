@@ -24,9 +24,12 @@ import GroupIcon from '@mui/icons-material/Group';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import ForumIcon from '@mui/icons-material/Forum';
 import AnnouncementIcon from '@mui/icons-material/Announcement';
-import toast from 'react-hot-toast';
-import ClassChat from '../components/common/ClassChat';
 import ChatIcon from '@mui/icons-material/Chat';
+import toast from 'react-hot-toast';
+
+// Import components
+import DiscussionList from '../components/discussions/DiscussionList';
+import ClassChat from '../components/common/ClassChat';
 
 const ClassDetail = () => {
   const { id } = useParams();
@@ -52,15 +55,6 @@ const ClassDetail = () => {
     }
   };
 
-
-{tabValue === 4 && (
-  <Box sx={{ p: 3 }}>
-    <ClassChat classId={id} className={classData.name} />
-  </Box>
-)}
-
-
-
   const handleLeaveClass = async () => {
     if (window.confirm('Are you sure you want to leave this class?')) {
       try {
@@ -73,11 +67,15 @@ const ClassDetail = () => {
     }
   };
 
+  const handleTabChange = (event, newValue) => {
+    setTabValue(newValue);
+  };
+
   if (loading) return <Container><Typography>Loading...</Typography></Container>;
   if (!classData) return <Container><Typography>Class not found</Typography></Container>;
 
-  const isEnrolled = classData.students?.some(s => s._id === user?._id);
-  const isOwner = classData.teacherId?._id === user?._id;
+  const isEnrolled = classData.students?.some(s => s._id === user?._id || s === user?._id);
+  const isOwner = classData.teacherId?._id === user?._id || classData.teacherId === user?._id;
 
   return (
     <Container maxWidth="lg">
@@ -111,18 +109,25 @@ const ClassDetail = () => {
 
         {/* Tabs */}
         <Paper sx={{ width: '100%' }}>
-          <Tabs value={tabValue} onChange={(e, v) => setTabValue(v)}>
+          <Tabs 
+            value={tabValue} 
+            onChange={handleTabChange}
+            variant="scrollable"
+            scrollButtons="auto"
+            sx={{ borderBottom: 1, borderColor: 'divider' }}
+          >
             <Tab icon={<AnnouncementIcon />} label="Announcements" />
             <Tab icon={<AssignmentIcon />} label="Assignments" />
             <Tab icon={<ForumIcon />} label="Discussions" />
             <Tab icon={<GroupIcon />} label="Students" />
+            <Tab icon={<ChatIcon />} label="Live Chat" />
           </Tabs>
 
           {/* Announcements Tab */}
           {tabValue === 0 && (
             <Box sx={{ p: 3 }}>
               <Typography variant="h6" gutterBottom>Announcements</Typography>
-              {isTeacher && (
+              {isOwner && (
                 <Button variant="contained" sx={{ mb: 2 }}>
                   Post Announcement
                 </Button>
@@ -139,7 +144,7 @@ const ClassDetail = () => {
           {tabValue === 1 && (
             <Box sx={{ p: 3 }}>
               <Typography variant="h6" gutterBottom>Assignments</Typography>
-              {isTeacher && (
+              {isOwner && (
                 <Button variant="contained" sx={{ mb: 2 }}>
                   Create Assignment
                 </Button>
@@ -155,15 +160,11 @@ const ClassDetail = () => {
           {/* Discussions Tab */}
           {tabValue === 2 && (
             <Box sx={{ p: 3 }}>
-              <Typography variant="h6" gutterBottom>Discussions</Typography>
-              <Button variant="contained" sx={{ mb: 2 }}>
-                New Discussion
-              </Button>
-              <Paper sx={{ p: 2 }}>
-                <Typography variant="body1" color="text.secondary">
-                  No discussions yet.
-                </Typography>
-              </Paper>
+              <DiscussionList 
+                classId={id} 
+                isTeacher={isOwner} 
+                isEnrolled={isEnrolled}
+              />
             </Box>
           )}
 
@@ -192,6 +193,13 @@ const ClassDetail = () => {
                   </ListItem>
                 )}
               </List>
+            </Box>
+          )}
+
+          {/* Live Chat Tab */}
+          {tabValue === 4 && (
+            <Box sx={{ p: 3 }}>
+              <ClassChat classId={id} className={classData.name} />
             </Box>
           )}
         </Paper>

@@ -2,15 +2,19 @@ const express = require('express');
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const cors = require('cors');
+const connectDB = require('./config/db');
 
 // Load environment variables
 dotenv.config();
 
+// Connect to database
+connectDB();
+
 const app = express();
 
 // Middleware
-app.use(cors());           // Allow cross-origin requests
-app.use(express.json());   // Parse JSON bodies
+app.use(cors());
+app.use(express.json());
 
 // Test route
 app.get('/api/test', (req, res) => {
@@ -22,17 +26,98 @@ app.get('/api/test', (req, res) => {
 
 // Health check route
 app.get('/api/health', (req, res) => {
+  const dbState = mongoose.connection.readyState;
+  const dbStatus = {
+    0: 'disconnected',
+    1: 'connected',
+    2: 'connecting',
+    3: 'disconnecting'
+  };
+  
   res.json({ 
     status: 'OK',
     server: 'running',
+    database: dbStatus[dbState] || 'unknown',
     port: process.env.PORT || 5000
   });
+});
+
+// Simple DB test
+app.get('/api/test-db-simple', async (req, res) => {
+  try {
+    // Check if database is connected
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Database not connected',
+        dbState: mongoose.connection.readyState
+      });
+    }
+    
+    res.json({ 
+      success: true, 
+      message: 'Database is connected',
+      dbState: mongoose.connection.readyState
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+// Test User model
+app.get('/api/test-user', async (req, res) => {
+  try {
+    // Check database connection first
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(500).json({
+        success: false,
+        error: 'Database not connected'
+      });
+    }
+    
+    const User = require('./models/User');
+    
+    // Check if test user already exists
+    let testUser = await User.findOne({ email: 'teacher@test.com' });
+    
+    if (!testUser) {
+      // Create test user only if it doesn't exist
+      testUser = await User.create({
+        name: 'Test Teacher',
+        email: 'teacher@test.com',
+        password: 'password123',
+        role: 'teacher'
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'User model working!',
+      user: {
+        id: testUser._id,
+        name: testUser.name,
+        email: testUser.email,
+        role: testUser.role
+      }
+    });
+  } catch (error) {
+    console.error('Test user error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
 });
 
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT}`);
-  console.log(`📍 Test endpoint: http://localhost:${PORT}/api/test`);
-  console.log(`📍 Health endpoint: http://localhost:${PORT}/api/health`);
+  console.log(`📍 Test: http://localhost:${PORT}/api/test`);
+  console.log(`📍 Health: http://localhost:${PORT}/api/health`);
+  console.log(`📍 DB Test: http://localhost:${PORT}/api/test-db-simple`);
+  console.log(`📍 User Test: http://localhost:${PORT}/api/test-user`);
 });

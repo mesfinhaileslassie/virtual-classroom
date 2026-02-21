@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Classes</title>
+    <style>
+        body { font-family: Arial; padding: 20px; }
+        input, textarea, button { margin: 10px 0; padding: 8px; width: 100%; }
+        pre { background: #f4f4f4; padding: 10px; border-radius: 5px; }
+        .token { font-size: 12px; word-break: break-all; }
+    </style>
+</head>
+<body>
+    <h2>📚 Test Class Management</h2>
+    
+    <div>
+        <h3>Teacher Token:</h3>
+        <textarea id="token" rows="3" cols="60" class="token">eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5OTllOWRmOTIzZGM1YjU0OGJiNjJmMyIsImlhdCI6MTc3MTY5NDU1OSwiZXhwIjoxNzc0Mjg2NTU5fQ.y1MGYnOhYn4YeCf5YmsfCWHSHPwWWwqI9iwXKOvePRc</textarea>
+    </div>
+
+    <div>
+        <h3>Create New Class:</h3>
+        <input type="text" id="className" placeholder="Class Name" value="Mathematics 101">
+        <input type="text" id="subject" placeholder="Subject" value="Mathematics">
+        <input type="text" id="semester" placeholder="Semester" value="Spring 2026">
+        <textarea id="description" placeholder="Description" rows="3">Introduction to Algebra and Calculus</textarea>
+        <button onclick="createClass()">Create Class</button>
+    </div>
+
+    <div>
+        <h3>View All Classes:</h3>
+        <button onclick="getClasses()">Get My Classes</button>
+    </div>
+
+    <div>
+        <h3>Response:</h3>
+        <pre id="response">Click a button to test</pre>
+    </div>
+
+    <script>
+        const BASE_URL = 'http://localhost:5000/api';
+        
+        async function createClass() {
+            const token = document.getElementById('token').value;
+            const classData = {
+                name: document.getElementById('className').value,
+                subject: document.getElementById('subject').value,
+                semester: document.getElementById('semester').value,
+                description: document.getElementById('description').value
+            };
+
+            try {
+                const response = await fetch(`${BASE_URL}/classes`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(classData)
+                });
+                
+                const data = await response.json();
+                document.getElementById('response').textContent = 
+                    JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('response').textContent = 
+                    'Error: ' + error.message;
+            }
+        }
+
+        async function getClasses() {
+            const token = document.getElementById('token').value;
+
+            try {
+                const response = await fetch(`${BASE_URL}/classes`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const data = await response.json();
+                document.getElementById('response').textContent = 
+                    JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('response').textContent = 
+                    'Error: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>

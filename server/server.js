@@ -113,7 +113,8 @@ app.get('/api/test-user', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
-
+// Auth routes
+app.use('/api/auth', require('./routes/authRoutes'));
 app.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT}`);
   console.log(`📍 Test: http://localhost:${PORT}/api/test`);

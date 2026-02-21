@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Complete API Test</title>
+    <style>
+        body { font-family: Arial; padding: 20px; max-width: 1000px; margin: 0 auto; }
+        textarea, input, button { margin: 10px 0; padding: 8px; width: 100%; box-sizing: border-box; }
+        pre { background: #f4f4f4; padding: 10px; border-radius: 5px; overflow: auto; max-height: 300px; }
+        .token { font-size: 12px; word-break: break-all; font-family: monospace; }
+        .section { border: 1px solid #ddd; padding: 15px; margin: 20px 0; border-radius: 5px; background: #f9f9f9; }
+        .section h3 { margin-top: 0; color: #333; }
+        .button-group { display: flex; gap: 10px; flex-wrap: wrap; }
+        .button-group button { flex: 1; min-width: 120px; }
+        .class-code { font-family: monospace; font-size: 16px; font-weight: bold; color: #0066cc; }
+        .success { color: green; font-weight: bold; }
+        .error { color: red; font-weight: bold; }
+        .status-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+        .status-connected { background: #d4edda; color: #155724; }
+        .status-disconnected { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <h1>🎓 Virtual Classroom - Complete API Test</h1>
+    
+    <div class="section">
+        <h3>📋 Server Status</h3>
+        <div id="status">Checking server status...</div>
+        <button onclick="checkStatus()" style="width: auto;">🔄 Refresh Status</button>
+    </div>
+
+    <div class="section">
+        <h3>👤 Create Fresh Teacher</h3>
+        <p>Create a new teacher account with a fresh token</p>
+        <div class="button-group">
+            <button onclick="createFreshTeacher()">✨ Create Fresh Teacher</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h3>👤 Teacher Token</h3>
+        <textarea id="teacherToken" rows="3" class="token" placeholder="Teacher token will appear here"></textarea>
+        <div class="button-group">
+            <button onclick="testTeacherToken()">🔍 Test Teacher Token</button>
+            <button onclick="getTeacherProfile()">👤 Get Teacher Profile</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h3>📚 Create Class</h3>
+        <input type="text" id="className" placeholder="Class Name" value="Mathematics 101">
+        <input type="text" id="subject" placeholder="Subject" value="Mathematics">
+        <input type="text" id="semester" placeholder="Semester" value="Spring 2026">
+        <textarea id="description" placeholder="Description" rows="3">Introduction to Algebra and Calculus</textarea>
+        <div class="button-group">
+            <button onclick="createClass()">➕ Create Class</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h3>📋 Class Code Display</h3>
+        <p>Class Code: <span id="classCodeDisplay" class="class-code">Not created yet</span></p>
+    </div>
+
+    <div class="section">
+        <h3>👤 Create Fresh Student</h3>
+        <p>Create a new student account with a fresh token</p>
+        <div class="button-group">
+            <button onclick="createFreshStudent()">✨ Create Fresh Student</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h3>👤 Student Token</h3>
+        <textarea id="studentToken" rows="3" class="token" placeholder="Student token will appear here"></textarea>
+        <div class="button-group">
+            <button onclick="testStudentToken()">🔍 Test Student Token</button>
+            <button onclick="getStudentProfile()">👤 Get Student Profile</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h3>📝 Enroll in Class</h3>
+        <input type="text" id="enrollClassCode" placeholder="Enter Class Code" value="">
+        <div class="button-group">
+            <button onclick="enrollStudent()">📝 Enroll Student</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h3>📋 View Classes</h3>
+        <div class="button-group">
+            <button onclick="getTeacherClasses()">👨‍🏫 Teacher's Classes</button>
+            <button onclick="getStudentClasses()">👩‍🎓 Student's Classes</button>
+            <button onclick="getAllClasses()">📚 All Classes (Admin)</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h3>📤 Response:</h3>
+        <pre id="response">Click a button to test</pre>
+    </div>
+
+    <script>
+        const BASE_URL = 'http://localhost:5000/api';
+        
+        // Check server status on load
+        window.onload = function() {
+            checkStatus();
+        };
+
+        async function checkStatus() {
+            try {
+                const response = await fetch(`${BASE_URL}/health`);
+                const data = await response.json();
+                document.getElementById('status').innerHTML = 
+                    `<span class="status-badge status-connected">✅ CONNECTED</span> 
+                     Server: ${data.server} | Database: ${data.database} | Port: ${data.port}`;
+            } catch (error) {
+                document.getElementById('status').innerHTML = 
+                    `<span class="status-badge status-disconnected">❌ DISCONNECTED</span> 
+                     Server not reachable. Make sure your server is running on port 5000.`;
+            }
+        }
+
+        async function createFreshTeacher() {
+            const teacherData = {
+                name: "Professor Johnson",
+                email: "johnson@school.com",
+                password: "password123",
+                role: "teacher"
+            };
+
+            try {
+                document.getElementById('response').textContent = 'Creating teacher...';
+                
+                const response = await fetch(`${BASE_URL}/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(teacherData)
+                });
+                
+                const data = await response.json();
+                document.getElementById('response').textContent = JSON.stringify(data, null, 2);
+                
+                if (data.success) {
+                    document.getElementById('teacherToken').value = data.data.token;
+                    alert('✅ Fresh teacher created! Token saved below.');
+                } else {
+                    if (data.error.includes('already exists')) {
+                        alert('Teacher already exists. Try logging in instead.');
+                        await loginTeacher();
+                    }
+                }
+            } catch (error) {
+                document.getElementById('response').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        async function loginTeacher() {
+            const loginData = {
+                email: "johnson@school.com",
+                password: "password123"
+            };
+
+            try {
+                const response = await fetch(`${BASE_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(loginData)
+                });
+                
+                const data = await response.json();
+                document.getElementById('response').textContent = JSON.stringify(data, null, 2);
+                
+                if (data.success) {
+                    document.getElementById('teacherToken').value = data.data.token;
+                    alert('✅ Teacher logged in! Token saved below.');
+                }
+            } catch (error) {
+                document.getElementById('response').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        async function createFreshStudent() {
+            const studentData = {
+                name: "Jane Student",
+                email: "jane@student.com",
+                password: "password123",
+                role: "student"
+            };
+
+            try {
+                document.getElementById('response').textContent = 'Creating student...';
+                
+                const response = await fetch(`${BASE_URL}/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(studentData)
+                });
+                
+                const data = await response.json();
+                document.getElementById('response').textContent = JSON.stringify(data, null, 2);
+                
+                if (data.success) {
+                    document.getElementById('studentToken').value = data.data.token;
+                    alert('✅ Fresh student created! Token saved below.');
+                } else {
+                    if (data.error.includes('already exists')) {
+                        alert('Student already exists. Try logging in instead.');
+                        await loginStudent();
+                    }
+                }
+            } catch (error) {
+                document.getElementById('response').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        async function loginStudent() {
+            const loginData = {
+                email: "jane@student.com",
+                password: "password123"
+            };
+
+            try {
+                const response = await fetch(`${BASE_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(loginData)
+                });
+                
+                const data = await response.json();
+                document.getElementById('response').textContent = JSON.stringify(data, null, 2);
+                
+                if (data.success) {
+                    document.getElementById('studentToken').value = data.data.token;
+                    alert('✅ Student logged in! Token saved below.');
+                }
+            } catch (error) {
+                document.getElementById('response').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        async function testTeacherToken() {
+            const token = document.getElementById('teacherToken').value.trim();
+            await testToken(token, 'Teacher');
+        }
+
+        async function testStudentToken() {
+            const token = document.getElementById('studentToken').value.trim();
+            await testToken(token, 'Student');
+        }
+
+        async function testToken(token, role) {
+            if (!token) {
+                alert(`Please enter ${role} token!`);
+                return;
+            }
+
+            try {
+                const response = await fetch(`${BASE_URL}/auth/profile`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                document.getElementById('response').textContent = JSON.stringify(data, null, 2);
+                
+                if (data.success) {
+                    alert(`✅ ${role} token is valid!`);
+                } else {
+                    alert(`❌ ${role} token failed: ${data.error}`);
+                }
+            } catch (error) {
+                document.getElementById('response').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        async function getTeacherProfile() {
+            const token = document.getElementById('teacherToken').value.trim();
+            if (!token) {
+                alert('Please enter teacher token!');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${BASE_URL}/auth/profile`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                document.getElementById('response').textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('response').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        async function getStudentProfile() {
+            const token = document.getElementById('studentToken').value.trim();
+            if (!token) {
+                alert('Please enter student token!');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${BASE_URL}/auth/profile`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                document.getElementById('response').textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('response').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        async function createClass() {
+            const token = document.getElementById('teacherToken').value.trim();
+            if (!token) {
+                alert('Please create teacher first!');
+                return;
+            }
+
+            const classData = {
+                name: document.getElementById('className').value,
+                subject: document.getElementById('subject').value,
+                semester: document.getElementById('semester').value,
+                description: document.getElementById('description').value
+            };
+
+            try {
+                document.getElementById('response').textContent = 'Creating class...';
+                
+                const response = await fetch(`${BASE_URL}/classes`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(classData)
+                });
+                
+                const data = await response.json();
+                document.getElementById('response').textContent = JSON.stringify(data, null, 2);
+                
+                if (data.success) {
+                    document.getElementById('classCodeDisplay').textContent = data.data.classCode;
+                    document.getElementById('enrollClassCode').value = data.data.classCode;
+                    alert(`✅ Class created! Code: ${data.data.classCode}`);
+                }
+            } catch (error) {
+                document.getElementById('response').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        async function enrollStudent() {
+            const token = document.getElementById('studentToken').value.trim();
+            const classCode = document.getElementById('enrollClassCode').value.trim();
+
+            if (!token) {
+                alert('Please create student first!');
+                return;
+            }
+
+            if (!classCode) {
+                alert('Please create class first!');
+                return;
+            }
+
+            try {
+                document.getElementById('response').textContent = 'Enrolling...';
+                
+                const response = await fetch(`${BASE_URL}/classes/enroll`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ classCode })
+                });
+                
+                const data = await response.json();
+                document.getElementById('response').textContent = JSON.stringify(data, null, 2);
+                
+                if (data.success) {
+                    alert('✅ Successfully enrolled!');
+                }
+            } catch (error) {
+                document.getElementById('response').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        async function getTeacherClasses() {
+            const token = document.getElementById('teacherToken').value.trim();
+            if (!token) {
+                alert('Please enter teacher token!');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${BASE_URL}/classes`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                document.getElementById('response').textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('response').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        async function getStudentClasses() {
+            const token = document.getElementById('studentToken').value.trim();
+            if (!token) {
+                alert('Please enter student token!');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${BASE_URL}/classes`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                document.getElementById('response').textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('response').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        async function getAllClasses() {
+            try {
+                // This would require admin token - just for demonstration
+                document.getElementById('response').textContent = 'Admin feature - requires admin token';
+            } catch (error) {
+                document.getElementById('response').textContent = 'Error: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Student Features</title>
+    <style>
+        body { font-family: Arial; padding: 20px; max-width: 800px; margin: 0 auto; }
+        input, textarea, button { margin: 10px 0; padding: 8px; width: 100%; }
+        pre { background: #f4f4f4; padding: 10px; border-radius: 5px; overflow: auto; }
+        .token { font-size: 12px; word-break: break-all; }
+        .section { border: 1px solid #ddd; padding: 15px; margin: 20px 0; border-radius: 5px; }
+        .section h3 { margin-top: 0; }
+        .class-code { font-family: monospace; font-size: 18px; font-weight: bold; color: #0066cc; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h2>🎓 Student Dashboard</h2>
+    
+    <div class="section">
+        <h3>Step 1: Student Token (from login response)</h3>
+        <textarea id="studentToken" rows="4" class="token">eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5OTlmMTFiZDRmYzJjODI0M2Q4OWI0OTMiLCJpYXQiOjE3NzE2OTYwMjMsImV4cCI6MTc3NDI4ODAyM30.v5H8kL2mNpQrStUvWxYzAbCdEfGhIjKlMnOpQrStU</textarea>
+    </div>
+
+    <div class="section">
+        <h3>Step 2: Class Code</h3>
+        <input type="text" id="classCode" placeholder="Enter class code" value="MATH-2026-HSD77953" size="30">
+        <button onclick="enrollInClass()">📝 Enroll in Class</button>
+    </div>
+
+    <div class="section">
+        <h3>Step 3: View My Classes</h3>
+        <button onclick="getMyClasses()">📚 View My Classes</button>
+        <button onclick="testProfile()">👤 Test Profile</button>
+    </div>
+
+    <div class="section">
+        <h3>Response:</h3>
+        <pre id="response">Click a button to test</pre>
+    </div>
+
+    <script>
+        const BASE_URL = 'http://localhost:5000/api';
+        
+        async function enrollInClass() {
+            const token = document.getElementById('studentToken').value.trim();
+            const classCode = document.getElementById('classCode').value.trim();
+
+            if (!token) {
+                alert('Please enter your token!');
+                return;
+            }
+
+            try {
+                document.getElementById('response').textContent = 'Loading...';
+                
+                const response = await fetch(`${BASE_URL}/classes/enroll`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ classCode })
+                });
+                
+                const data = await response.json();
+                document.getElementById('response').textContent = 
+                    JSON.stringify(data, null, 2);
+                
+                if (data.success) {
+                    alert('✅ Successfully enrolled!');
+                }
+            } catch (error) {
+                document.getElementById('response').textContent = 
+                    'Error: ' + error.message;
+            }
+        }
+
+        async function getMyClasses() {
+            const token = document.getElementById('studentToken').value.trim();
+
+            if (!token) {
+                alert('Please enter your token!');
+                return;
+            }
+
+            try {
+                document.getElementById('response').textContent = 'Loading...';
+                
+                const response = await fetch(`${BASE_URL}/classes`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const data = await response.json();
+                document.getElementById('response').textContent = 
+                    JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('response').textContent = 
+                    'Error: ' + error.message;
+            }
+        }
+
+        async function testProfile() {
+            const token = document.getElementById('studentToken').value.trim();
+
+            if (!token) {
+                alert('Please enter your token!');
+                return;
+            }
+
+            try {
+                document.getElementById('response').textContent = 'Loading...';
+                
+                const response = await fetch(`${BASE_URL}/auth/profile`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const data = await response.json();
+                document.getElementById('response').textContent = 
+                    JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('response').textContent = 
+                    'Error: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -2,6 +2,8 @@ const express = require('express');
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const cors = require('cors');
+const http = require('http');
+const { Server } = require('socket.io');
 const connectDB = require('./config/db');
 
 // Load environment variables
@@ -112,22 +114,81 @@ app.get('/api/test-user', async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 5000;
-
-
 // Auth routes
 app.use('/api/auth', require('./routes/authRoutes'));
+
+// Discussion routes
+app.use('/api/discussions', require('./routes/discussionRoutes'));
+
 // Class routes
 app.use('/api/classes', require('./routes/classRoutes'));
 
+// Create HTTP server (THIS IS THE KEY CHANGE)
+const server = http.createServer(app);
 
+// Initialize Socket.io with the server
+const io = new Server(server, {
+  cors: {
+    origin: "http://localhost:3000",
+    methods: ["GET", "POST"],
+    credentials: true
+  }
+});
 
+// Socket.io connection handling
+io.on('connection', (socket) => {
+  console.log('🔌 New client connected:', socket.id);
 
+  // Join a class room
+  socket.on('join-class', (classId) => {
+    socket.join(`class-${classId}`);
+    console.log(`Socket ${socket.id} joined class ${classId}`);
+    
+    // Notify others in the class
+    socket.to(`class-${classId}`).emit('user-joined', {
+      message: 'A user has joined the chat',
+      userId: socket.id,
+      timestamp: new Date().toISOString()
+    });
+  });
 
-app.listen(PORT, () => {
+  // Leave a class room
+  socket.on('leave-class', (classId) => {
+    socket.leave(`class-${classId}`);
+    console.log(`Socket ${socket.id} left class ${classId}`);
+  });
+
+  // Handle chat messages
+  socket.on('send-message', (data) => {
+    console.log('📨 Message received:', data);
+    
+    // Broadcast to everyone in the class including sender
+    io.to(`class-${data.classId}`).emit('receive-message', {
+      text: data.text,
+      sender: {
+        id: data.sender.id,
+        name: data.sender.name,
+        role: data.sender.role
+      },
+      timestamp: data.timestamp || new Date().toISOString(),
+      classId: data.classId
+    });
+  });
+
+  // Handle disconnection
+  socket.on('disconnect', () => {
+    console.log('🔌 Client disconnected:', socket.id);
+  });
+});
+
+const PORT = process.env.PORT || 5000;
+
+// Use server.listen instead of app.listen
+server.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT}`);
   console.log(`📍 Test: http://localhost:${PORT}/api/test`);
   console.log(`📍 Health: http://localhost:${PORT}/api/health`);
   console.log(`📍 DB Test: http://localhost:${PORT}/api/test-db-simple`);
   console.log(`📍 User Test: http://localhost:${PORT}/api/test-user`);
+  console.log(`🔌 Socket.io server ready for connections`);
 });

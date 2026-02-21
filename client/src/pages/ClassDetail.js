@@ -25,6 +25,8 @@ import AssignmentIcon from '@mui/icons-material/Assignment';
 import ForumIcon from '@mui/icons-material/Forum';
 import AnnouncementIcon from '@mui/icons-material/Announcement';
 import toast from 'react-hot-toast';
+import ClassChat from '../components/common/ClassChat';
+import ChatIcon from '@mui/icons-material/Chat';
 
 const ClassDetail = () => {
   const { id } = useParams();
@@ -49,6 +51,15 @@ const ClassDetail = () => {
       setLoading(false);
     }
   };
+
+
+{tabValue === 4 && (
+  <Box sx={{ p: 3 }}>
+    <ClassChat classId={id} className={classData.name} />
+  </Box>
+)}
+
+
 
   const handleLeaveClass = async () => {
     if (window.confirm('Are you sure you want to leave this class?')) {

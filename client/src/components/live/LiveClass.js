@@ -5,8 +5,6 @@ import {
   Typography,
   Box,
   Grid,
-  Card,
-  CardContent,
   IconButton,
   Button,
   Avatar,
@@ -38,12 +36,9 @@ import {
   ThumbUp as ThumbUpIcon,
   ThumbDown as ThumbDownIcon,
   PanTool as HandIcon,
-  EmojiEmotions as EmojiIcon,
   Chat as ChatIcon,
   Group as GroupIcon,
   Fullscreen as FullscreenIcon,
-  VolumeUp as VolumeUpIcon,
-  VolumeOff as VolumeOffIcon,
   Settings as SettingsIcon,
   Send as SendIcon,
   Close as CloseIcon,
@@ -52,14 +47,17 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { io } from 'socket.io-client';
+import Peer from 'simple-peer';
 
 const LiveClass = ({ classId, className, isTeacher, onEnd }) => {
   const { user } = useAuth();
   const [socket, setSocket] = useState(null);
+  const [peers, setPeers] = useState([]);
   const [stream, setStream] = useState(null);
   const [isAudioMuted, setIsAudioMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const [screenStream, setScreenStream] = useState(null);
   const [reactions, setReactions] = useState([]);
   const [students, setStudents] = useState([]);
   const [raisedHands, setRaisedHands] = useState([]);
@@ -84,9 +82,13 @@ const LiveClass = ({ classId, className, isTeacher, onEnd }) => {
     video: [],
     audio: []
   });
+  const [teacherStream, setTeacherStream] = useState(null);
+  const [isTeacherOnline, setIsTeacherOnline] = useState(false);
 
   const myVideo = useRef();
+  const teacherVideo = useRef();
   const videoContainer = useRef();
+  const peersRef = useRef([]);
 
   // Initialize socket connection
   useEffect(() => {
@@ -104,8 +106,15 @@ const LiveClass = ({ classId, className, isTeacher, onEnd }) => {
       setConnectionStatus('connected');
       
       if (isTeacher) {
-        newSocket.emit('teacher-started', { classId, userId: user._id, name: user.name });
+        // Teacher starts the class and shares their stream
+        initializeMedia();
+        newSocket.emit('teacher-started', { 
+          classId, 
+          userId: user._id, 
+          name: user.name 
+        });
       } else {
+        // Students join and wait for teacher's stream
         newSocket.emit('join-live-class', { 
           classId, 
           userId: user._id, 
@@ -127,7 +136,7 @@ const LiveClass = ({ classId, className, isTeacher, onEnd }) => {
 
     // Listen for teacher status
     newSocket.on('teacher-started', () => {
-      console.log('👨‍🏫 Teacher has started the class');
+      setIsTeacherOnline(true);
     });
 
     // Listen for reactions
@@ -138,7 +147,6 @@ const LiveClass = ({ classId, className, isTeacher, onEnd }) => {
         [reaction.type]: prev[reaction.type] + 1
       }));
       
-      // Remove reaction after 3 seconds
       setTimeout(() => {
         setReactions(prev => prev.filter(r => r.id !== reaction.id));
       }, 3000);
@@ -172,6 +180,60 @@ const LiveClass = ({ classId, className, isTeacher, onEnd }) => {
       setParticipantCount(studentList.length + (isTeacher ? 1 : 0));
     });
 
+    // Listen for teacher's stream signal
+    newSocket.on('teacher-signal', ({ signal }) => {
+      if (!isTeacher) {
+        // Student receives teacher's signal and creates peer connection
+        const peer = new Peer({
+          initiator: false,
+          trickle: false,
+          stream: stream
+        });
+
+        peer.on('signal', (signal) => {
+          newSocket.emit('student-signal', { 
+            classId, 
+            userId: user._id, 
+            signal 
+          });
+        });
+
+        peer.on('stream', (teacherStream) => {
+          // Student receives teacher's video stream
+          setTeacherStream(teacherStream);
+          if (teacherVideo.current) {
+            teacherVideo.current.srcObject = teacherStream;
+          }
+        });
+
+        peer.signal(signal);
+        peersRef.current.push({ peer, userId: 'teacher' });
+      }
+    });
+
+    newSocket.on('student-signal', ({ userId, signal }) => {
+      if (isTeacher) {
+        // Teacher receives signal from student and connects
+        const peer = peersRef.current.find(p => p.userId === userId);
+        if (peer) {
+          peer.peer.signal(signal);
+        }
+      }
+    });
+
+    // Listen for teacher's media toggles
+    newSocket.on('teacher-audio-toggle', ({ muted }) => {
+      console.log('Teacher audio toggled:', muted);
+    });
+
+    newSocket.on('teacher-video-toggle', ({ off }) => {
+      console.log('Teacher video toggled:', off);
+    });
+
+    newSocket.on('teacher-screen-share', ({ sharing }) => {
+      console.log('Teacher screen share:', sharing);
+    });
+
     // Listen for class ended
     newSocket.on('class-ended', () => {
       alert('Class has ended by the teacher.');
@@ -182,20 +244,37 @@ const LiveClass = ({ classId, className, isTeacher, onEnd }) => {
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
       }
+      if (screenStream) {
+        screenStream.getTracks().forEach(track => track.stop());
+      }
+      peersRef.current.forEach(({ peer }) => peer.destroy());
       newSocket.disconnect();
     };
   }, [classId, user, isTeacher]);
 
-  // Initialize media devices
-  useEffect(() => {
-    if (isTeacher) {
-      initializeMedia();
-      getAvailableDevices();
-    }
-  }, [isTeacher]);
-
-  const getAvailableDevices = async () => {
+  // Initialize media devices for teacher
+  const initializeMedia = async (deviceId = null) => {
     try {
+      const constraints = {
+        video: deviceId?.video ? { deviceId: { exact: deviceId.video } } : true,
+        audio: deviceId?.audio ? { deviceId: { exact: deviceId.audio } } : true
+      };
+
+      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+      setStream(mediaStream);
+      
+      if (myVideo.current) {
+        myVideo.current.srcObject = mediaStream;
+      }
+
+      // Create peer connections for each student
+      students.forEach(student => {
+        createPeer(student.userId, mediaStream);
+      });
+
+      setError(null);
+      
+      // Get available devices
       const devices = await navigator.mediaDevices.enumerateDevices();
       const videoDevices = devices.filter(device => device.kind === 'videoinput');
       const audioDevices = devices.filter(device => device.kind === 'audioinput');
@@ -211,40 +290,37 @@ const LiveClass = ({ classId, className, isTeacher, onEnd }) => {
       if (audioDevices.length > 0) {
         setSelectedDevice(prev => ({ ...prev, audio: audioDevices[0].deviceId }));
       }
-    } catch (error) {
-      console.error('Error getting devices:', error);
-    }
-  };
 
-  const initializeMedia = async (deviceId = null) => {
-    try {
-      const constraints = {
-        video: deviceId?.video ? { deviceId: { exact: deviceId.video } } : true,
-        audio: deviceId?.audio ? { deviceId: { exact: deviceId.audio } } : true
-      };
-
-      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
-      setStream(mediaStream);
-      
-      if (myVideo.current) {
-        myVideo.current.srcObject = mediaStream;
-      }
-
-      setError(null);
     } catch (error) {
       console.error('Error accessing media devices:', error);
       setError('Unable to access camera/microphone. Please check permissions.');
     }
   };
 
+  // Create peer connection for a student
+  const createPeer = (userId, stream) => {
+    const peer = new Peer({
+      initiator: true,
+      trickle: false,
+      stream: stream
+    });
+
+    peer.on('signal', (signal) => {
+      socket.emit('teacher-signal', { classId, userId, signal });
+    });
+
+    peersRef.current.push({ peer, userId });
+    return peer;
+  };
+
   const toggleAudio = () => {
     if (stream) {
-      stream.getAudioTracks().forEach(track => {
+      const audioTracks = stream.getAudioTracks();
+      audioTracks.forEach(track => {
         track.enabled = isAudioMuted;
       });
       setIsAudioMuted(!isAudioMuted);
       
-      // Notify others
       socket?.emit('teacher-audio-toggle', { 
         classId, 
         muted: !isAudioMuted 
@@ -254,12 +330,12 @@ const LiveClass = ({ classId, className, isTeacher, onEnd }) => {
 
   const toggleVideo = () => {
     if (stream) {
-      stream.getVideoTracks().forEach(track => {
+      const videoTracks = stream.getVideoTracks();
+      videoTracks.forEach(track => {
         track.enabled = isVideoOff;
       });
       setIsVideoOff(!isVideoOff);
       
-      // Notify others
       socket?.emit('teacher-video-toggle', { 
         classId, 
         off: !isVideoOff 
@@ -275,14 +351,20 @@ const LiveClass = ({ classId, className, isTeacher, onEnd }) => {
           audio: true
         });
         
-        // Replace video track
-        const videoTrack = screenStream.getVideoTracks()[0];
-        const sender = stream?.getVideoTracks()[0];
+        setScreenStream(screenStream);
         
-        if (sender && videoTrack) {
-          stream.removeTrack(sender);
-          stream.addTrack(videoTrack);
-          myVideo.current.srcObject = stream;
+        // Replace video track in all peer connections
+        const videoTrack = screenStream.getVideoTracks()[0];
+        peersRef.current.forEach(({ peer }) => {
+          const sender = peer.getSenders().find(s => s.track.kind === 'video');
+          if (sender) {
+            sender.replaceTrack(videoTrack);
+          }
+        });
+
+        // Update local video
+        if (myVideo.current) {
+          myVideo.current.srcObject = screenStream;
         }
         
         videoTrack.onended = () => {
@@ -291,7 +373,6 @@ const LiveClass = ({ classId, className, isTeacher, onEnd }) => {
         
         setIsScreenSharing(true);
         
-        // Notify others
         socket?.emit('teacher-screen-share', { 
           classId, 
           sharing: true 
@@ -305,24 +386,30 @@ const LiveClass = ({ classId, className, isTeacher, onEnd }) => {
   };
 
   const stopScreenShare = async () => {
-    try {
-      // Restore camera
-      const newStream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: !isAudioMuted
-      });
+    if (screenStream) {
+      screenStream.getTracks().forEach(track => track.stop());
+      setScreenStream(null);
       
-      setStream(newStream);
-      myVideo.current.srcObject = newStream;
+      // Restore camera video track
+      const videoTrack = stream.getVideoTracks()[0];
+      peersRef.current.forEach(({ peer }) => {
+        const sender = peer.getSenders().find(s => s.track.kind === 'video');
+        if (sender) {
+          sender.replaceTrack(videoTrack);
+        }
+      });
+
+      // Restore local video
+      if (myVideo.current) {
+        myVideo.current.srcObject = stream;
+      }
+      
       setIsScreenSharing(false);
       
-      // Notify others
       socket?.emit('teacher-screen-share', { 
         classId, 
         sharing: false 
       });
-    } catch (error) {
-      console.error('Error stopping screen share:', error);
     }
   };
 
@@ -336,11 +423,21 @@ const LiveClass = ({ classId, className, isTeacher, onEnd }) => {
   };
 
   const raiseHand = () => {
-    socket?.emit('raise-hand', {
-      classId,
-      userId: user._id,
-      name: user.name
-    });
+    const isHandRaised = raisedHands.some(h => h.userId === user._id);
+    
+    if (!isHandRaised) {
+      socket?.emit('raise-hand', {
+        classId,
+        userId: user._id,
+        name: user.name
+      });
+    } else {
+      // Lower hand if already raised
+      socket?.emit('lower-hand', {
+        classId,
+        userId: user._id
+      });
+    }
   };
 
   const lowerHand = (userId) => {
@@ -367,6 +464,9 @@ const LiveClass = ({ classId, className, isTeacher, onEnd }) => {
       socket?.emit('end-live-class', { classId });
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
+      }
+      if (screenStream) {
+        screenStream.getTracks().forEach(track => track.stop());
       }
       if (onEnd) onEnd();
     }
@@ -442,9 +542,11 @@ const LiveClass = ({ classId, className, isTeacher, onEnd }) => {
               />
             )}
           </Box>
-          <IconButton color="inherit" onClick={endClass}>
-            <CallEndIcon />
-          </IconButton>
+          {isTeacher && (
+            <IconButton color="inherit" onClick={endClass}>
+              <CallEndIcon />
+            </IconButton>
+          )}
         </Box>
       </Paper>
 
@@ -456,7 +558,10 @@ const LiveClass = ({ classId, className, isTeacher, onEnd }) => {
           sx={{ 
             flex: chatOpen ? 3 : 4,
             position: 'relative',
-            bgcolor: '#000'
+            bgcolor: '#000',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
           }}
         >
           {isTeacher ? (
@@ -468,37 +573,38 @@ const LiveClass = ({ classId, className, isTeacher, onEnd }) => {
               style={{
                 width: '100%',
                 height: '100%',
-                objectFit: 'cover',
+                objectFit: 'contain',
                 transform: isVideoOff ? 'none' : 'scaleX(-1)'
               }}
             />
           ) : (
-            <Box
-              sx={{
-                width: '100%',
-                height: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexDirection: 'column',
-                color: 'white'
-              }}
-            >
-              {isVideoOff ? (
-                <>
-                  <VideocamOffIcon sx={{ fontSize: 80, mb: 2, opacity: 0.5 }} />
-                  <Typography variant="h6">Teacher's video is off</Typography>
-                </>
+            <>
+              {teacherStream ? (
+                <video
+                  ref={teacherVideo}
+                  autoPlay
+                  playsInline
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'contain'
+                  }}
+                />
               ) : (
-                <>
-                  <Typography variant="h3" gutterBottom>📺</Typography>
-                  <Typography variant="h5">Live Class in Progress</Typography>
-                  <Typography variant="body1" sx={{ mt: 2, opacity: 0.7 }}>
-                    {students.length} students watching
-                  </Typography>
-                </>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexDirection: 'column',
+                    color: 'white'
+                  }}
+                >
+                  <VideocamOffIcon sx={{ fontSize: 80, mb: 2, opacity: 0.5 }} />
+                  <Typography variant="h6">Waiting for teacher to start video...</Typography>
+                </Box>
               )}
-            </Box>
+            </>
           )}
 
           {/* Reactions Overlay */}
@@ -516,7 +622,7 @@ const LiveClass = ({ classId, className, isTeacher, onEnd }) => {
                 >
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Avatar sx={{ width: 24, height: 24, bgcolor: 'secondary.main' }}>
-                      {reaction.name.charAt(0)}
+                      {reaction.name?.charAt(0)}
                     </Avatar>
                     <Typography variant="body2">
                       {reaction.name} 
@@ -572,7 +678,7 @@ const LiveClass = ({ classId, className, isTeacher, onEnd }) => {
                   <Box key={hand.userId} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <Avatar sx={{ width: 24, height: 24, bgcolor: 'warning.dark' }}>
-                        {hand.name.charAt(0)}
+                        {hand.name?.charAt(0)}
                       </Avatar>
                       <Typography variant="body2">{hand.name}</Typography>
                     </Box>
@@ -629,8 +735,14 @@ const LiveClass = ({ classId, className, isTeacher, onEnd }) => {
                         <ThumbDownIcon />
                       </IconButton>
                     </Tooltip>
-                    <Tooltip title="Raise Hand">
-                      <IconButton onClick={raiseHand} sx={{ color: raisedHands.some(h => h.userId === user._id) ? '#ff9800' : 'white' }}>
+                    <Tooltip title={raisedHands.some(h => h.userId === user._id) ? 'Lower Hand' : 'Raise Hand'}>
+                      <IconButton 
+                        onClick={raiseHand} 
+                        sx={{ 
+                          color: raisedHands.some(h => h.userId === user._id) ? '#ff9800' : 'white',
+                          animation: raisedHands.some(h => h.userId === user._id) ? 'pulse 1s infinite' : 'none'
+                        }}
+                      >
                         <HandIcon />
                       </IconButton>
                     </Tooltip>
@@ -663,7 +775,7 @@ const LiveClass = ({ classId, className, isTeacher, onEnd }) => {
                 <Box key={index} sx={{ mb: 2 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Avatar sx={{ width: 24, height: 24, bgcolor: 'secondary.main' }}>
-                      {msg.name.charAt(0)}
+                      {msg.name?.charAt(0)}
                     </Avatar>
                     <Typography variant="subtitle2" sx={{ color: 'white' }}>
                       {msg.name}
@@ -743,6 +855,21 @@ const LiveClass = ({ classId, className, isTeacher, onEnd }) => {
           </select>
         </DialogContent>
       </Dialog>
+
+      <style>
+        {`
+          @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+          }
+          @keyframes float {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0); }
+          }
+        `}
+      </style>
     </Box>
   );
 };

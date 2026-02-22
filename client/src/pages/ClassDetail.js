@@ -30,6 +30,8 @@ import toast from 'react-hot-toast';
 // Import components
 import DiscussionList from '../components/discussions/DiscussionList';
 import ClassChat from '../components/common/ClassChat';
+import AssignmentList from '../components/assignments/AssignmentList';
+
 
 const ClassDetail = () => {
   const { id } = useParams();
@@ -121,6 +123,7 @@ const ClassDetail = () => {
             <Tab icon={<ForumIcon />} label="Discussions" />
             <Tab icon={<GroupIcon />} label="Students" />
             <Tab icon={<ChatIcon />} label="Live Chat" />
+            <Tab icon={<AssignmentIcon />} label="Assignments" />
           </Tabs>
 
           {/* Announcements Tab */}
@@ -195,6 +198,15 @@ const ClassDetail = () => {
               </List>
             </Box>
           )}
+
+          {/*Assignment tab*/}
+          {tabValue === 1 && (
+            <Box sx={{ p: 3 }}>
+              <AssignmentList classId={id} />
+            </Box>
+          )}
+
+
 
           {/* Live Chat Tab */}
           {tabValue === 4 && (

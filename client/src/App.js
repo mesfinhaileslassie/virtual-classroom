@@ -6,7 +6,8 @@ import CssBaseline from '@mui/material/CssBaseline';
 
 // Context
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { DiscussionProvider } from './context/DiscussionContext'; // Add this import
+import { DiscussionProvider } from './context/DiscussionContext';
+import { AssignmentProvider } from './context/AssignmentContext'; // Add this
 
 // Layout
 import Navbar from './components/layout/Navbar';
@@ -23,6 +24,13 @@ import StudentDashboard from './pages/StudentDashboard';
 
 // Discussion Components
 import DiscussionThread from './components/discussions/DiscussionThread';
+
+// Assignment Components (we'll create these next)
+import AssignmentList from './components/assignments/AssignmentList';
+import AssignmentDetail from './components/assignments/AssignmentDetail';
+import AssignmentForm from './components/assignments/AssignmentForm';
+import SubmissionForm from './components/assignments/SubmissionForm';
+import GradingView from './components/assignments/GradingView';
 
 const theme = createTheme({
   palette: {
@@ -59,11 +67,12 @@ function AppContent() {
     <>
       <Navbar />
       <Routes>
+        {/* Public Routes */}
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         
-        {/* Protected Routes */}
+        {/* Protected Routes - Classes */}
         <Route path="/classes" element={
           <ProtectedRoute>
             <Classes />
@@ -76,12 +85,14 @@ function AppContent() {
           </ProtectedRoute>
         } />
         
+        {/* Protected Routes - Profile */}
         <Route path="/profile" element={
           <ProtectedRoute>
             <Profile />
           </ProtectedRoute>
         } />
         
+        {/* Protected Routes - Dashboards */}
         <Route path="/teacher/dashboard" element={
           <ProtectedRoute allowedRoles={['teacher', 'admin']}>
             <TeacherDashboard />
@@ -94,10 +105,47 @@ function AppContent() {
           </ProtectedRoute>
         } />
 
-        {/* Discussion Route */}
+        {/* Protected Routes - Discussions */}
         <Route path="/discussions/:id" element={
           <ProtectedRoute>
             <DiscussionThread />
+          </ProtectedRoute>
+        } />
+
+        {/* Protected Routes - Assignments */}
+        <Route path="/assignments" element={
+          <ProtectedRoute>
+            <AssignmentList />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/assignments/:id" element={
+          <ProtectedRoute>
+            <AssignmentDetail />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/assignments/:id/submit" element={
+          <ProtectedRoute allowedRoles={['student']}>
+            <SubmissionForm />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/assignments/:id/grade" element={
+          <ProtectedRoute allowedRoles={['teacher', 'admin']}>
+            <GradingView />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/assignments/create/:classId" element={
+          <ProtectedRoute allowedRoles={['teacher', 'admin']}>
+            <AssignmentForm />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/assignments/edit/:id" element={
+          <ProtectedRoute allowedRoles={['teacher', 'admin']}>
+            <AssignmentForm />
           </ProtectedRoute>
         } />
       </Routes>
@@ -111,9 +159,11 @@ function App() {
       <CssBaseline />
       <Router>
         <AuthProvider>
-          <DiscussionProvider> {/* Add DiscussionProvider here */}
-            <Toaster position="top-right" />
-            <AppContent />
+          <DiscussionProvider>
+            <AssignmentProvider>  {/* Add AssignmentProvider here */}
+              <Toaster position="top-right" />
+              <AppContent />
+            </AssignmentProvider>  {/* Close AssignmentProvider */}
           </DiscussionProvider>
         </AuthProvider>
       </Router>

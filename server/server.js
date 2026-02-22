@@ -117,6 +117,9 @@ app.get('/api/test-user', async (req, res) => {
 // Auth routes
 app.use('/api/auth', require('./routes/authRoutes'));
 
+// Assignment routes
+app.use('/api/assignments', require('./routes/assignmentRoutes'));
+
 // Discussion routes
 app.use('/api/discussions', require('./routes/discussionRoutes'));
 

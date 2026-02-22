@@ -44,4 +44,21 @@ export const classAPI = {
   getClassStudents: (id) => api.get(`/classes/${id}/students`),
 };
 
+
+// Assignment APIs
+export const assignmentAPI = {
+  createAssignment: (data) => api.post('/assignments', data),
+  getClassAssignments: (classId) => api.get(`/assignments/class/${classId}`),
+  getAssignmentById: (id) => api.get(`/assignments/${id}`),
+  updateAssignment: (id, data) => api.put(`/assignments/${id}`, data),
+  deleteAssignment: (id) => api.delete(`/assignments/${id}`),
+  submitAssignment: (id, submission) => api.post(`/assignments/${id}/submit`, submission),
+  gradeSubmission: (assignmentId, studentId, gradeData) => 
+    api.put(`/assignments/${assignmentId}/grade/${studentId}`, gradeData),
+  getMySubmissions: (classId) => api.get(`/assignments/student/my-submissions/${classId}`),
+  getAssignmentStats: (id) => api.get(`/assignments/${id}/stats`)
+};
+
+
+
 export default api;

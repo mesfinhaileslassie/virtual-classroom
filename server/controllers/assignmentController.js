@@ -127,10 +127,15 @@ const getClassAssignments = async (req, res) => {
       // Teachers see all assignments with submissions
       assignments = await Assignment.find({ classId })
         .populate('teacherId', 'name email')
-        .populate('submissions.student', 'name email')
+        .populate('submissions.student', 'name email profilePicture')
         .sort('-createdAt');
       
       console.log(`👨‍🏫 Teacher view: Found ${assignments.length} assignments`);
+      
+      // Log submission counts for debugging
+      assignments.forEach(a => {
+        console.log(`📊 Assignment "${a.title}" has ${a.submissions?.length || 0} submissions`);
+      });
     } else {
       // Students see only published assignments
       assignments = await Assignment.find({ 
@@ -188,18 +193,29 @@ const getAssignmentById = async (req, res) => {
       });
     }
 
-    // For students, filter out other students' submissions
-    if (!isTeacher && !isAdmin) {
-      assignment.submissions = assignment.submissions.filter(
+    console.log('📊 Assignment found with', assignment.submissions?.length || 0, 'total submissions');
+
+    // Create a copy of the assignment to modify
+    const responseAssignment = assignment.toObject();
+
+    if (isTeacher || isAdmin) {
+      // Teachers see all submissions
+      console.log('👨‍🏫 Teacher viewing - showing all', responseAssignment.submissions?.length || 0, 'submissions');
+    } else {
+      // For students, filter out other students' submissions
+      const originalCount = responseAssignment.submissions?.length || 0;
+      responseAssignment.submissions = (responseAssignment.submissions || []).filter(
         s => s.student._id.toString() === req.user._id.toString()
       );
+      console.log(`👩‍🎓 Student viewing - filtered from ${originalCount} to ${responseAssignment.submissions.length} submissions`);
     }
 
     res.json({
       success: true,
-      data: assignment
+      data: responseAssignment
     });
   } catch (error) {
+    console.error('❌ Get assignment error:', error);
     res.status(500).json({
       success: false,
       error: error.message
@@ -301,18 +317,38 @@ const deleteAssignment = async (req, res) => {
 // @access  Private (Students only)
 const submitAssignment = async (req, res) => {
   try {
+    console.log('📝 BACKEND: Processing submission for assignment:', req.params.id);
+    console.log('👤 BACKEND: Student ID:', req.user._id);
+    console.log('📦 BACKEND: Submission body:', JSON.stringify(req.body, null, 2));
+
     const assignment = await Assignment.findById(req.params.id);
 
     if (!assignment) {
+      console.log('❌ BACKEND: Assignment not found');
       return res.status(404).json({
         success: false,
         error: 'Assignment not found'
       });
     }
 
+    console.log('✅ BACKEND: Assignment found:', assignment.title);
+
     // Check if user is enrolled in the class
     const classItem = await Class.findById(assignment.classId);
-    if (!classItem.students.includes(req.user._id) && req.user.role !== 'admin') {
+    if (!classItem) {
+      console.log('❌ BACKEND: Class not found');
+      return res.status(404).json({
+        success: false,
+        error: 'Class not found'
+      });
+    }
+
+    const isEnrolled = classItem.students.some(s => 
+      s.toString() === req.user._id.toString()
+    );
+
+    if (!isEnrolled && req.user.role !== 'admin') {
+      console.log('❌ BACKEND: Student not enrolled');
       return res.status(403).json({
         success: false,
         error: 'You are not enrolled in this class'
@@ -321,6 +357,7 @@ const submitAssignment = async (req, res) => {
 
     // Check if assignment is published
     if (assignment.status !== 'published') {
+      console.log('❌ BACKEND: Assignment not published');
       return res.status(400).json({
         success: false,
         error: 'This assignment is not accepting submissions'
@@ -333,6 +370,7 @@ const submitAssignment = async (req, res) => {
     );
 
     if (existingSubmission) {
+      console.log('❌ BACKEND: Student already submitted');
       return res.status(400).json({
         success: false,
         error: 'You have already submitted this assignment'
@@ -343,33 +381,60 @@ const submitAssignment = async (req, res) => {
 
     // Check if late
     const now = new Date();
-    const isLate = now > assignment.dueDate;
-    const status = isLate && assignment.allowLateSubmission ? 'late' : 'submitted';
-
-    if (isLate && !assignment.allowLateSubmission) {
-      return res.status(400).json({
-        success: false,
-        error: 'Assignment due date has passed and late submissions are not allowed'
-      });
+    const isLate = now > new Date(assignment.dueDate);
+    let submissionStatus = 'submitted';
+    
+    if (isLate) {
+      if (assignment.allowLateSubmission) {
+        submissionStatus = 'late';
+        console.log('⚠️ BACKEND: Late submission - allowed');
+      } else {
+        console.log('❌ BACKEND: Late submission - not allowed');
+        return res.status(400).json({
+          success: false,
+          error: 'Assignment due date has passed and late submissions are not allowed'
+        });
+      }
     }
 
+    // Create submission object
     const submission = {
       student: req.user._id,
-      content,
+      content: content || '',
       attachments: attachments || [],
       submittedAt: now,
-      status
+      status: submissionStatus
     };
 
+    console.log('📄 BACKEND: Submission object:', submission);
+
+    // Add to assignment
     assignment.submissions.push(submission);
+    
+    // Update counts
+    assignment.totalSubmissions = assignment.submissions.length;
+    
     await assignment.save();
+
+    console.log('✅ BACKEND: Submission saved successfully');
+    console.log('📊 BACKEND: Total submissions now:', assignment.submissions.length);
+
+    // Populate student info for response
+    const populatedAssignment = await Assignment.findById(assignment._id)
+      .populate('submissions.student', 'name email');
+
+    const savedSubmission = populatedAssignment.submissions.find(
+      s => s.student._id.toString() === req.user._id.toString()
+    );
 
     res.status(201).json({
       success: true,
       message: 'Assignment submitted successfully',
-      data: submission
+      data: savedSubmission
     });
   } catch (error) {
+    console.error('❌ BACKEND: Submit assignment error:', error);
+    console.error('❌ BACKEND: Error stack:', error.stack);
     res.status(500).json({
       success: false,
       error: error.message

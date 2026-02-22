@@ -17,9 +17,26 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    console.log(`🔵 API Request: ${config.method.toUpperCase()} ${config.url}`, config.data);
     return config;
   },
   (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Response interceptor to handle token errors
+api.interceptors.response.use(
+  (response) => {
+    console.log(`🟢 API Response: ${response.config.method.toUpperCase()} ${response.config.url}`, response.data);
+    return response;
+  },
+  (error) => {
+    console.log(`🔴 API Error: ${error.config?.method?.toUpperCase()} ${error.config?.url}`, error.response?.data);
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      window.location.href = '/login';
+    }
     return Promise.reject(error);
   }
 );
@@ -44,7 +61,6 @@ export const classAPI = {
   getClassStudents: (id) => api.get(`/classes/${id}/students`),
 };
 
-
 // Assignment APIs
 export const assignmentAPI = {
   createAssignment: (data) => api.post('/assignments', data),
@@ -52,13 +68,14 @@ export const assignmentAPI = {
   getAssignmentById: (id) => api.get(`/assignments/${id}`),
   updateAssignment: (id, data) => api.put(`/assignments/${id}`, data),
   deleteAssignment: (id) => api.delete(`/assignments/${id}`),
-  submitAssignment: (id, submission) => api.post(`/assignments/${id}/submit`, submission),
+  submitAssignment: (id, submission) => {
+    console.log('🔵 API call - submitAssignment:', { id, submission });
+    return api.post(`/assignments/${id}/submit`, submission);
+  },
   gradeSubmission: (assignmentId, studentId, gradeData) => 
     api.put(`/assignments/${assignmentId}/grade/${studentId}`, gradeData),
   getMySubmissions: (classId) => api.get(`/assignments/student/my-submissions/${classId}`),
   getAssignmentStats: (id) => api.get(`/assignments/${id}/stats`)
 };
-
-
 
 export default api;

@@ -21,7 +21,7 @@ const SubmissionForm = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { submitAssignment, loading } = useAssignments();
+  const { submitAssignment } = useAssignments();
   
   const [content, setContent] = useState('');
   const [attachments, setAttachments] = useState([]);
@@ -46,11 +46,39 @@ const SubmissionForm = () => {
 
     setSubmitting(true);
     
-    // For now, just simulate submission
-    setTimeout(() => {
-      toast.success('Assignment submitted successfully!');
-      navigate(`/assignments/${id}`);
-    }, 1500);
+    try {
+      // Prepare submission data
+      const submissionData = {
+        content: content,
+        attachments: attachments.map(file => ({
+          fileName: file.name,
+          fileType: file.type,
+          fileSize: file.size,
+          fileUrl: URL.createObjectURL(file) // Temporary URL
+        }))
+      };
+
+      console.log('📤 Submitting to backend:', { 
+        assignmentId: id, 
+        data: submissionData 
+      });
+
+      const result = await submitAssignment(id, submissionData);
+      
+      console.log('📥 Backend response:', result);
+
+      if (result?.success) {
+        toast.success('Assignment submitted successfully!');
+        navigate(`/assignments/${id}`);
+      } else {
+        toast.error(result?.error || 'Failed to submit assignment');
+      }
+    } catch (error) {
+      console.error('❌ Submission error:', error);
+      toast.error('Failed to submit assignment');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -79,6 +107,7 @@ const SubmissionForm = () => {
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 placeholder="Write your answer here or add comments about your submission..."
+                required={attachments.length === 0}
               />
             </Grid>
 

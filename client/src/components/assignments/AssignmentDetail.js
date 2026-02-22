@@ -183,79 +183,133 @@ const AssignmentDetail = () => {
         )}
       </Paper>
 
-      {/* Student Submission Section */}
-      {isStudent && (
-        <Paper sx={{ p: 4 }}>
-          <Typography variant="h5" gutterBottom>
-            Your Submission
-          </Typography>
+ // Student Submission Section
+{isStudent && (
+  <Paper sx={{ p: 4 }}>
+    <Typography variant="h5" gutterBottom>
+      Your Submission
+    </Typography>
 
-          {mySubmission ? (
-            <Box>
-              <Alert severity="success" sx={{ mb: 2 }}>
-                You submitted this assignment on {format(new Date(mySubmission.submittedAt), 'MMMM dd, yyyy hh:mm a')}
-              </Alert>
+    {console.log('🎯 Student view - submissions:', currentAssignment.submissions)}
 
-              <Typography variant="body1" paragraph>
-                {mySubmission.content}
-              </Typography>
+    {currentAssignment.submissions && currentAssignment.submissions.length > 0 ? (
+      <Box>
+        {currentAssignment.submissions.map((submission, idx) => (
+          <Box key={idx}>
+            <Alert severity="success" sx={{ mb: 2 }}>
+              You submitted this assignment on {format(new Date(submission.submittedAt), 'MMMM dd, yyyy hh:mm a')}
+              {submission.status === 'late' && <span> (Late)</span>}
+            </Alert>
 
-              {mySubmission.attachments?.length > 0 && (
-                <>
-                  <Typography variant="subtitle1">Attachments:</Typography>
-                  <List>
-                    {mySubmission.attachments.map((file, index) => (
-                      <ListItem key={index}>
-                        <ListItemAvatar>
-                          <Avatar>
-                            <AttachFile />
-                          </Avatar>
-                        </ListItemAvatar>
-                        <ListItemText
-                          primary={file.fileName}
-                          secondary={`${(file.fileSize / 1024).toFixed(2)} KB`}
-                        />
-                        <Button size="small" href={file.fileUrl} target="_blank">
-                          Download
-                        </Button>
-                      </ListItem>
-                    ))}
-                  </List>
-                </>
-              )}
+            <Typography variant="body1" paragraph>
+              {submission.content}
+            </Typography>
 
-              {mySubmission.grade !== undefined && (
-                <Alert severity="info" sx={{ mt: 2 }}>
-                  <Typography variant="subtitle1">
-                    Grade: {mySubmission.grade}/{currentAssignment.points}
+            {submission.attachments?.length > 0 && (
+              <>
+                <Typography variant="subtitle1">Attachments:</Typography>
+                <List>
+                  {submission.attachments.map((file, fileIdx) => (
+                    <ListItem key={fileIdx}>
+                      <ListItemAvatar>
+                        <Avatar>
+                          <AttachFile />
+                        </Avatar>
+                      </ListItemAvatar>
+                      <ListItemText
+                        primary={file.fileName}
+                        secondary={`${(file.fileSize / 1024).toFixed(2)} KB`}
+                      />
+                      <Button size="small" href={file.fileUrl} target="_blank">
+                        Download
+                      </Button>
+                    </ListItem>
+                  ))}
+                </List>
+              </>
+            )}
+
+            {submission.grade !== undefined && (
+              <Alert severity="info" sx={{ mt: 2 }}>
+                <Typography variant="subtitle1">
+                  Grade: {submission.grade}/{currentAssignment.points}
+                </Typography>
+                {submission.feedback && (
+                  <Typography variant="body2">
+                    Feedback: {submission.feedback}
                   </Typography>
-                  {mySubmission.feedback && (
-                    <Typography variant="body2">
-                      Feedback: {mySubmission.feedback}
-                    </Typography>
-                  )}
-                </Alert>
-              )}
-            </Box>
-          ) : (
-            <Box>
-              {isPastDue ? (
-                <Alert severity="error">
-                  This assignment is past due and no longer accepting submissions.
-                </Alert>
-              ) : (
-                <Button
-                  variant="contained"
-                  startIcon={<Send />}
-                  onClick={() => navigate(`/assignments/${id}/submit`)}
-                >
-                  Submit Assignment
-                </Button>
-              )}
-            </Box>
-          )}
-        </Paper>
-      )}
+                )}
+              </Alert>
+            )}
+          </Box>
+        ))}
+      </Box>
+    ) : (
+      <Box>
+        {isPastDue ? (
+          <Alert severity="error">
+            This assignment is past due and no longer accepting submissions.
+          </Alert>
+        ) : (
+          <Button
+            variant="contained"
+            startIcon={<Send />}
+            onClick={() => navigate(`/assignments/${id}/submit`)}
+          >
+            Submit Assignment
+          </Button>
+        )}
+      </Box>
+    )}
+  </Paper>
+)}
+
+// Teacher View - All Submissions
+{isTeacher && currentAssignment.submissions && currentAssignment.submissions.length > 0 && (
+  <Paper sx={{ p: 4, mt: 3 }}>
+    <Typography variant="h5" gutterBottom>
+      Submissions ({currentAssignment.submissions.length})
+    </Typography>
+    <List>
+      {currentAssignment.submissions.map((submission, index) => (
+        <React.Fragment key={index}>
+          <ListItem>
+            <ListItemAvatar>
+              <Avatar src={submission.student?.profilePicture}>
+                {submission.student?.name?.charAt(0)}
+              </Avatar>
+            </ListItemAvatar>
+            <ListItemText
+              primary={submission.student?.name}
+              secondary={
+                <>
+                  Submitted: {format(new Date(submission.submittedAt), 'MMM dd, yyyy hh:mm a')}
+                  {submission.status === 'late' && ' • Late'}
+                  {submission.grade && ` • Grade: ${submission.grade}/${currentAssignment.points}`}
+                </>
+              }
+            />
+            <Button
+              variant="outlined"
+              onClick={() => navigate(`/assignments/${id}/grade?student=${submission.student?._id}`)}
+            >
+              {submission.grade ? 'Update Grade' : 'Grade'}
+            </Button>
+          </ListItem>
+          <Divider />
+        </React.Fragment>
+      ))}
+    </List>
+  </Paper>
+)}
+
+{isTeacher && (!currentAssignment.submissions || currentAssignment.submissions.length === 0) && (
+  <Paper sx={{ p: 4, mt: 3, textAlign: 'center' }}>
+    <Typography variant="body1" color="text.secondary">
+      No submissions yet.
+    </Typography>
+  </Paper>
+)}
 
       {/* Teacher View - All Submissions */}
       {isTeacher && currentAssignment.submissions?.length > 0 && (

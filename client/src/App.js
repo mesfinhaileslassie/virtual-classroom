@@ -10,7 +10,7 @@ import { DiscussionProvider } from './context/DiscussionContext';
 import { AssignmentProvider } from './context/AssignmentContext';
 
 // Layout
-import Navbar from './components/layout/Navbar';
+import Layout from './components/layout/Layout';
 
 // Pages
 import Home from './pages/Home';
@@ -64,8 +64,7 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
 
 function AppContent() {
   return (
-    <>
-      <Navbar />
+    <Layout>
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<Home />} />
@@ -137,7 +136,6 @@ function AppContent() {
           </ProtectedRoute>
         } />
         
-        {/* IMPORTANT: This route uses :classId parameter */}
         <Route path="/assignments/create/:classId" element={
           <ProtectedRoute allowedRoles={['teacher', 'admin']}>
             <AssignmentForm />
@@ -150,7 +148,7 @@ function AppContent() {
           </ProtectedRoute>
         } />
       </Routes>
-    </>
+    </Layout>
   );
 }
 

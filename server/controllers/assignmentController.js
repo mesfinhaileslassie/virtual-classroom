@@ -1,4 +1,3 @@
-// Assignment controller 
 const Assignment = require('../models/Assignment');
 const Class = require('../models/Class');
 const User = require('../models/User');
@@ -84,8 +83,7 @@ const createAssignment = async (req, res) => {
     console.error('❌ Error stack:', error.stack);
     res.status(500).json({
       success: false,
-      error: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      error: error.message
     });
   }
 };
@@ -96,6 +94,10 @@ const createAssignment = async (req, res) => {
 const getClassAssignments = async (req, res) => {
   try {
     const { classId } = req.params;
+
+    console.log('📚 Getting assignments for class:', classId);
+    console.log('👤 User role:', req.user.role);
+    console.log('👤 User ID:', req.user._id);
 
     // Check if class exists
     const classItem = await Class.findById(classId);
@@ -111,6 +113,8 @@ const getClassAssignments = async (req, res) => {
     const isEnrolled = classItem.students.includes(req.user._id);
     const isAdmin = req.user.role === 'admin';
 
+    console.log('🔍 Access check:', { isTeacher, isEnrolled, isAdmin });
+
     if (!isTeacher && !isEnrolled && !isAdmin) {
       return res.status(403).json({
         success: false,
@@ -125,12 +129,19 @@ const getClassAssignments = async (req, res) => {
         .populate('teacherId', 'name email')
         .populate('submissions.student', 'name email')
         .sort('-createdAt');
+      
+      console.log(`👨‍🏫 Teacher view: Found ${assignments.length} assignments`);
     } else {
-      // Students see only published assignments without other students' submissions
-      assignments = await Assignment.find({ classId, status: 'published' })
+      // Students see only published assignments
+      assignments = await Assignment.find({ 
+        classId, 
+        status: 'published' 
+      })
         .populate('teacherId', 'name email')
         .select('-submissions') // Don't send submissions to students
         .sort('-createdAt');
+      
+      console.log(`👩‍🎓 Student view: Found ${assignments.length} published assignments`);
     }
 
     res.json({
@@ -139,6 +150,7 @@ const getClassAssignments = async (req, res) => {
       data: assignments
     });
   } catch (error) {
+    console.error('❌ Get class assignments error:', error);
     res.status(500).json({
       success: false,
       error: error.message
@@ -229,8 +241,6 @@ const updateAssignment = async (req, res) => {
         updateData[field] = req.body[field];
       }
     });
-
-    updateData.updatedAt = Date.now();
 
     assignment = await Assignment.findByIdAndUpdate(
       req.params.id,
@@ -432,7 +442,7 @@ const getMySubmissions = async (req, res) => {
   try {
     const { classId } = req.params;
 
-    const assignments = await Assignment.find({ classId })
+    const assignments = await Assignment.find({ classId, status: 'published' })
       .select('title dueDate points submissions')
       .populate('submissions.student', 'name email');
 
@@ -446,7 +456,8 @@ const getMySubmissions = async (req, res) => {
         assignmentTitle: assignment.title,
         dueDate: assignment.dueDate,
         totalPoints: assignment.points,
-        submission: mySubmission || null
+        submission: mySubmission || null,
+        status: mySubmission ? mySubmission.status : 'not_submitted'
       };
     });
 

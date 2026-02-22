@@ -47,7 +47,6 @@ app.get('/api/health', (req, res) => {
 // Simple DB test
 app.get('/api/test-db-simple', async (req, res) => {
   try {
-    // Check if database is connected
     if (mongoose.connection.readyState !== 1) {
       return res.status(500).json({ 
         success: false, 
@@ -72,7 +71,6 @@ app.get('/api/test-db-simple', async (req, res) => {
 // Test User model
 app.get('/api/test-user', async (req, res) => {
   try {
-    // Check database connection first
     if (mongoose.connection.readyState !== 1) {
       return res.status(500).json({
         success: false,
@@ -82,11 +80,9 @@ app.get('/api/test-user', async (req, res) => {
     
     const User = require('./models/User');
     
-    // Check if test user already exists
     let testUser = await User.findOne({ email: 'teacher@test.com' });
     
     if (!testUser) {
-      // Create test user only if it doesn't exist
       testUser = await User.create({
         name: 'Test Teacher',
         email: 'teacher@test.com',
@@ -117,19 +113,19 @@ app.get('/api/test-user', async (req, res) => {
 // Auth routes
 app.use('/api/auth', require('./routes/authRoutes'));
 
+// Class routes
+app.use('/api/classes', require('./routes/classRoutes'));
+
 // Assignment routes
 app.use('/api/assignments', require('./routes/assignmentRoutes'));
 
 // Discussion routes
 app.use('/api/discussions', require('./routes/discussionRoutes'));
 
-// Class routes
-app.use('/api/classes', require('./routes/classRoutes'));
-
-// Create HTTP server (THIS IS THE KEY CHANGE)
+// Create HTTP server
 const server = http.createServer(app);
 
-// Initialize Socket.io with the server
+// Initialize Socket.io
 const io = new Server(server, {
   cors: {
     origin: "http://localhost:3000",
@@ -138,16 +134,19 @@ const io = new Server(server, {
   }
 });
 
+// Track live classes
+const liveClasses = new Map();
+const studentHands = new Map();
+
 // Socket.io connection handling
 io.on('connection', (socket) => {
   console.log('🔌 New client connected:', socket.id);
 
-  // Join a class room
+  // Join a class room (for chat)
   socket.on('join-class', (classId) => {
     socket.join(`class-${classId}`);
     console.log(`Socket ${socket.id} joined class ${classId}`);
     
-    // Notify others in the class
     socket.to(`class-${classId}`).emit('user-joined', {
       message: 'A user has joined the chat',
       userId: socket.id,
@@ -164,8 +163,6 @@ io.on('connection', (socket) => {
   // Handle chat messages
   socket.on('send-message', (data) => {
     console.log('📨 Message received:', data);
-    
-    // Broadcast to everyone in the class including sender
     io.to(`class-${data.classId}`).emit('receive-message', {
       text: data.text,
       sender: {
@@ -178,15 +175,156 @@ io.on('connection', (socket) => {
     });
   });
 
+  // Live Class Events
+  socket.on('teacher-started', ({ classId, userId, name }) => {
+    socket.join(`live-${classId}`);
+    socket.to(`live-${classId}`).emit('teacher-started');
+    
+    if (!liveClasses.has(classId)) {
+      liveClasses.set(classId, new Map());
+    }
+    
+    console.log(`👨‍🏫 Teacher ${name} started live class ${classId}`);
+  });
+
+  socket.on('join-live-class', ({ classId, userId, name }) => {
+    socket.join(`live-${classId}`);
+    
+    if (!liveClasses.has(classId)) {
+      liveClasses.set(classId, new Map());
+    }
+    
+    const classStudents = liveClasses.get(classId);
+    classStudents.set(userId, { socketId: socket.id, name, joinedAt: new Date() });
+    
+    const studentList = Array.from(classStudents.entries()).map(([userId, data]) => ({
+      userId,
+      name: data.name
+    }));
+    
+    io.to(`live-${classId}`).emit('student-list', studentList);
+    
+    console.log(`👤 Student ${name} joined live class ${classId}`);
+    console.log(`📊 Total students in class ${classId}: ${classStudents.size}`);
+  });
+
+  socket.on('send-reaction', ({ classId, userId, name, type }) => {
+    io.to(`live-${classId}`).emit('new-reaction', { userId, name, type });
+    console.log(`👍 Reaction ${type} from ${name} in class ${classId}`);
+  });
+
+  socket.on('raise-hand', ({ classId, userId, name }) => {
+    if (!studentHands.has(classId)) {
+      studentHands.set(classId, new Map());
+    }
+    
+    const hands = studentHands.get(classId);
+    hands.set(userId, { name, socketId: socket.id, raisedAt: new Date() });
+    
+    io.to(`live-${classId}`).emit('hand-raised', { userId, name });
+    console.log(`✋ Hand raised by ${name} in class ${classId}`);
+  });
+
+  socket.on('lower-hand', ({ classId, userId }) => {
+    if (studentHands.has(classId)) {
+      studentHands.get(classId).delete(userId);
+    }
+    io.to(`live-${classId}`).emit('hand-lowered', { userId });
+    console.log(`👇 Hand lowered for user ${userId} in class ${classId}`);
+  });
+
+  socket.on('send-chat-message', ({ classId, userId, name, message }) => {
+    io.to(`live-${classId}`).emit('new-chat-message', { 
+      userId, 
+      name, 
+      message,
+      timestamp: new Date().toISOString()
+    });
+    console.log(`💬 Chat message from ${name} in class ${classId}`);
+  });
+
+  socket.on('teacher-audio-toggle', ({ classId, muted }) => {
+    socket.to(`live-${classId}`).emit('teacher-audio-toggle', { muted });
+    console.log(`🎤 Teacher audio ${muted ? 'muted' : 'unmuted'} in class ${classId}`);
+  });
+
+  socket.on('teacher-video-toggle', ({ classId, off }) => {
+    socket.to(`live-${classId}`).emit('teacher-video-toggle', { off });
+    console.log(`📹 Teacher video ${off ? 'off' : 'on'} in class ${classId}`);
+  });
+
+  socket.on('teacher-screen-share', ({ classId, sharing }) => {
+    socket.to(`live-${classId}`).emit('teacher-screen-share', { sharing });
+    console.log(`🖥️ Teacher screen sharing ${sharing ? 'started' : 'stopped'} in class ${classId}`);
+  });
+
+  socket.on('end-live-class', ({ classId }) => {
+    io.to(`live-${classId}`).emit('class-ended');
+    
+    liveClasses.delete(classId);
+    studentHands.delete(classId);
+    
+    const room = io.sockets.adapter.rooms.get(`live-${classId}`);
+    if (room) {
+      for (const socketId of room) {
+        const clientSocket = io.sockets.sockets.get(socketId);
+        if (clientSocket) {
+          clientSocket.leave(`live-${classId}`);
+        }
+      }
+    }
+    
+    console.log(`🔴 Live class ended: ${classId}`);
+  });
+
   // Handle disconnection
   socket.on('disconnect', () => {
+    // Find and remove student from all live classes
+    for (const [classId, students] of liveClasses) {
+      let removedUserId = null;
+      let removedName = null;
+      
+      for (const [userId, data] of students) {
+        if (data.socketId === socket.id) {
+          students.delete(userId);
+          removedUserId = userId;
+          removedName = data.name;
+          break;
+        }
+      }
+      
+      if (removedUserId) {
+        const studentList = Array.from(students.entries()).map(([userId, data]) => ({
+          userId,
+          name: data.name
+        }));
+        
+        io.to(`live-${classId}`).emit('student-list', studentList);
+        
+        if (studentHands.has(classId)) {
+          studentHands.get(classId).delete(removedUserId);
+          io.to(`live-${classId}`).emit('hand-lowered', { userId: removedUserId });
+        }
+        
+        console.log(`👤 Student ${removedName} left live class ${classId}`);
+        console.log(`📊 Total students in class ${classId}: ${students.size}`);
+      }
+    }
+    
     console.log('🔌 Client disconnected:', socket.id);
+  });
+});
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    error: 'Route not found'
   });
 });
 
 const PORT = process.env.PORT || 5000;
 
-// Use server.listen instead of app.listen
 server.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT}`);
   console.log(`📍 Test: http://localhost:${PORT}/api/test`);

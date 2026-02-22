@@ -24,7 +24,8 @@ import {
   Announcement as AnnouncementIcon,
   Chat as ChatIcon,
   Add,
-  ArrowBack
+  ArrowBack,
+  Videocam as VideocamIcon
 } from '@mui/icons-material';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -35,37 +36,28 @@ import AssignmentList from '../components/assignments/AssignmentList';
 import toast from 'react-hot-toast';
 
 const ClassDetail = () => {
-  // Get the ID from URL params
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, isTeacher, isStudent } = useAuth();
-
+  
   const [classData, setClassData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [tabValue, setTabValue] = useState(0);
 
-  // Check if ID exists
   useEffect(() => {
-    console.log('🔍 Class ID from URL:', id);
-    
-    if (!id || id === 'undefined') {
-      console.error('❌ Invalid class ID:', id);
-      toast.error('Invalid class ID');
+    if (id) {
+      fetchClassDetails();
+    } else {
+      toast.error('Class ID is missing');
       navigate('/classes');
-      return;
     }
-    
-    fetchClassDetails();
   }, [id]);
 
   const fetchClassDetails = async () => {
     try {
-      console.log('📡 Fetching class with ID:', id);
       const response = await classAPI.getClassById(id);
-      console.log('✅ Class data received:', response.data);
       setClassData(response.data.data);
     } catch (error) {
-      console.error('❌ Error fetching class:', error);
       toast.error('Failed to load class details');
       navigate('/classes');
     } finally {
@@ -90,18 +82,11 @@ const ClassDetail = () => {
   };
 
   const handleCreateAssignment = () => {
-    // Validate ID before navigating
-    if (!id || id === 'undefined') {
-      console.error('❌ Cannot create assignment: invalid class ID', id);
-      toast.error('Class ID is invalid');
-      return;
-    }
-    
-    console.log('📝 Navigating to create assignment with classId:', id);
-    console.log('📝 Navigation URL:', `/assignments/create/${id}`);
-    
-    // Navigate to create assignment with classId parameter
     navigate(`/assignments/create/${id}`);
+  };
+
+  const handleLiveClass = () => {
+    navigate(`/live/${id}`);
   };
 
   if (loading) {
@@ -135,13 +120,6 @@ const ClassDetail = () => {
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
-      {/* Debug Info - Remove after fixing */}
-      <Paper sx={{ p: 2, mb: 2, bgcolor: '#f0f0f0' }}>
-        <Typography variant="body2">
-          <strong>Debug:</strong> Class ID: {id} | Valid: {id && id !== 'undefined' ? '✅' : '❌'}
-        </Typography>
-      </Paper>
-
       {/* Back Button */}
       <Button
         startIcon={<ArrowBack />}
@@ -153,12 +131,43 @@ const ClassDetail = () => {
 
       {/* Header */}
       <Paper sx={{ p: 4, mb: 3 }}>
-        <Typography variant="h4" gutterBottom>
-          {classData.name}
-        </Typography>
-        <Typography variant="body1" color="text.secondary" paragraph>
-          {classData.description}
-        </Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <Box>
+            <Typography variant="h4" gutterBottom>
+              {classData.name}
+            </Typography>
+            <Typography variant="body1" color="text.secondary" paragraph>
+              {classData.description}
+            </Typography>
+          </Box>
+          
+          {/* Live Class Buttons */}
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            {isOwner && (
+              <Button
+                variant="contained"
+                color="success"
+                startIcon={<VideocamIcon />}
+                onClick={handleLiveClass}
+                size="large"
+              >
+                Start Live Class
+              </Button>
+            )}
+            
+            {isStudent && isEnrolled && (
+              <Button
+                variant="contained"
+                color="success"
+                startIcon={<VideocamIcon />}
+                onClick={handleLiveClass}
+                size="large"
+              >
+                Join Live Class
+              </Button>
+            )}
+          </Box>
+        </Box>
         
         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
           <Chip label={`Code: ${classData.classCode}`} color="primary" />
@@ -225,16 +234,10 @@ const ClassDetail = () => {
                   Create Assignment
                 </Button>
               )}
-              
-
-
             </Box>
             <AssignmentList classId={id} />
           </Box>
         )}
-
-        
-
 
         {/* Discussions Tab */}
         {tabValue === 2 && (

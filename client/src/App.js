@@ -22,6 +22,8 @@ import ClassDetail from './pages/ClassDetail';
 import Profile from './pages/Profile';
 import TeacherDashboard from './pages/TeacherDashboard';
 import StudentDashboard from './pages/StudentDashboard';
+import StudentResults from './pages/StudentResults';
+import LiveClassPage from './pages/LiveClassPage';
 
 // Discussion Components
 import DiscussionThread from './components/discussions/DiscussionThread';
@@ -33,7 +35,6 @@ import AssignmentForm from './components/assignments/AssignmentForm';
 import SubmissionForm from './components/assignments/SubmissionForm';
 import GradingView from './components/assignments/GradingView';
 
-// Create theme
 const theme = createTheme({
   palette: {
     primary: {
@@ -67,30 +68,6 @@ const theme = createTheme({
   },
   typography: {
     fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
-    h1: {
-      fontSize: '2.5rem',
-      fontWeight: 500,
-    },
-    h2: {
-      fontSize: '2rem',
-      fontWeight: 500,
-    },
-    h3: {
-      fontSize: '1.75rem',
-      fontWeight: 500,
-    },
-    h4: {
-      fontSize: '1.5rem',
-      fontWeight: 500,
-    },
-    h5: {
-      fontSize: '1.25rem',
-      fontWeight: 500,
-    },
-    h6: {
-      fontSize: '1rem',
-      fontWeight: 500,
-    },
   },
   components: {
     MuiButton: {
@@ -147,7 +124,7 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   return children;
 };
 
-// Main App Content with Routes
+// Main App Content
 function AppContent() {
   return (
     <Layout>
@@ -157,7 +134,27 @@ function AppContent() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         
-        {/* Protected Routes - Classes */}
+        {/* Student Routes */}
+        <Route path="/student/dashboard" element={
+          <ProtectedRoute allowedRoles={['student']}>
+            <StudentDashboard />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/student/results" element={
+          <ProtectedRoute allowedRoles={['student']}>
+            <StudentResults />
+          </ProtectedRoute>
+        } />
+        
+        {/* Teacher Routes */}
+        <Route path="/teacher/dashboard" element={
+          <ProtectedRoute allowedRoles={['teacher', 'admin']}>
+            <TeacherDashboard />
+          </ProtectedRoute>
+        } />
+        
+        {/* Common Protected Routes */}
         <Route path="/classes" element={
           <ProtectedRoute>
             <Classes />
@@ -170,40 +167,20 @@ function AppContent() {
           </ProtectedRoute>
         } />
         
-        {/* Protected Routes - Profile */}
         <Route path="/profile" element={
           <ProtectedRoute>
             <Profile />
           </ProtectedRoute>
         } />
         
-        {/* Protected Routes - Dashboards */}
-        <Route path="/teacher/dashboard" element={
-          <ProtectedRoute allowedRoles={['teacher', 'admin']}>
-            <TeacherDashboard />
+        {/* Live Class Route */}
+        <Route path="/live/:id" element={
+          <ProtectedRoute>
+            <LiveClassPage />
           </ProtectedRoute>
         } />
         
-        <Route path="/student/dashboard" element={
-          <ProtectedRoute allowedRoles={['student']}>
-            <StudentDashboard />
-          </ProtectedRoute>
-        } />
-
-        <Route path="/admin/dashboard" element={
-          <ProtectedRoute allowedRoles={['admin']}>
-            <div>Admin Dashboard Coming Soon</div>
-          </ProtectedRoute>
-        } />
-
-        {/* Protected Routes - Discussions */}
-        <Route path="/discussions/:id" element={
-          <ProtectedRoute>
-            <DiscussionThread />
-          </ProtectedRoute>
-        } />
-
-        {/* Protected Routes - Assignments */}
+        {/* Assignment Routes */}
         <Route path="/assignments" element={
           <ProtectedRoute>
             <AssignmentList />
@@ -239,29 +216,200 @@ function AppContent() {
             <AssignmentForm />
           </ProtectedRoute>
         } />
+        
+        {/* Discussion Routes */}
+        <Route path="/discussions/:id" element={
+          <ProtectedRoute>
+            <DiscussionThread />
+          </ProtectedRoute>
+        } />
 
         {/* Settings Route */}
         <Route path="/settings" element={
           <ProtectedRoute>
-            <div>Settings Coming Soon</div>
+            <div style={{ padding: 20, textAlign: 'center' }}>
+              <h2>Settings Coming Soon</h2>
+              <button 
+                onClick={() => window.location.href = '/'}
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: '#1976d2',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '5px',
+                  cursor: 'pointer',
+                  marginTop: '20px'
+                }}
+              >
+                Go Home
+              </button>
+            </div>
           </ProtectedRoute>
         } />
 
         {/* Announcements Route */}
         <Route path="/announcements" element={
           <ProtectedRoute>
-            <div>Announcements Coming Soon</div>
+            <div style={{ padding: 20, textAlign: 'center' }}>
+              <h2>Announcements Coming Soon</h2>
+              <button 
+                onClick={() => window.location.href = '/'}
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: '#1976d2',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '5px',
+                  cursor: 'pointer',
+                  marginTop: '20px'
+                }}
+              >
+                Go Home
+              </button>
+            </div>
           </ProtectedRoute>
         } />
 
-        {/* FAQ Route */}
-        <Route path="/faq" element={<div>FAQ Coming Soon</div>} />
-        <Route path="/help" element={<div>Help Center Coming Soon</div>} />
-        <Route path="/privacy" element={<div>Privacy Policy Coming Soon</div>} />
-        <Route path="/terms" element={<div>Terms of Service Coming Soon</div>} />
-        <Route path="/cookies" element={<div>Cookie Policy Coming Soon</div>} />
-        <Route path="/about" element={<div>About Us Coming Soon</div>} />
-        <Route path="/contact" element={<div>Contact Us Coming Soon</div>} />
+        {/* Public Info Routes */}
+        <Route path="/faq" element={
+          <div style={{ padding: 20, textAlign: 'center' }}>
+            <h2>FAQ Coming Soon</h2>
+            <button 
+              onClick={() => window.location.href = '/'}
+              style={{
+                padding: '10px 20px',
+                backgroundColor: '#1976d2',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: 'pointer',
+                marginTop: '20px'
+              }}
+            >
+              Go Home
+            </button>
+          </div>
+        } />
+        
+        <Route path="/help" element={
+          <div style={{ padding: 20, textAlign: 'center' }}>
+            <h2>Help Center Coming Soon</h2>
+            <button 
+              onClick={() => window.location.href = '/'}
+              style={{
+                padding: '10px 20px',
+                backgroundColor: '#1976d2',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: 'pointer',
+                marginTop: '20px'
+              }}
+            >
+              Go Home
+            </button>
+          </div>
+        } />
+        
+        <Route path="/privacy" element={
+          <div style={{ padding: 20, textAlign: 'center' }}>
+            <h2>Privacy Policy Coming Soon</h2>
+            <button 
+              onClick={() => window.location.href = '/'}
+              style={{
+                padding: '10px 20px',
+                backgroundColor: '#1976d2',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: 'pointer',
+                marginTop: '20px'
+              }}
+            >
+              Go Home
+            </button>
+          </div>
+        } />
+        
+        <Route path="/terms" element={
+          <div style={{ padding: 20, textAlign: 'center' }}>
+            <h2>Terms of Service Coming Soon</h2>
+            <button 
+              onClick={() => window.location.href = '/'}
+              style={{
+                padding: '10px 20px',
+                backgroundColor: '#1976d2',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: 'pointer',
+                marginTop: '20px'
+              }}
+            >
+              Go Home
+            </button>
+          </div>
+        } />
+        
+        <Route path="/cookies" element={
+          <div style={{ padding: 20, textAlign: 'center' }}>
+            <h2>Cookie Policy Coming Soon</h2>
+            <button 
+              onClick={() => window.location.href = '/'}
+              style={{
+                padding: '10px 20px',
+                backgroundColor: '#1976d2',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: 'pointer',
+                marginTop: '20px'
+              }}
+            >
+              Go Home
+            </button>
+          </div>
+        } />
+        
+        <Route path="/about" element={
+          <div style={{ padding: 20, textAlign: 'center' }}>
+            <h2>About Us Coming Soon</h2>
+            <button 
+              onClick={() => window.location.href = '/'}
+              style={{
+                padding: '10px 20px',
+                backgroundColor: '#1976d2',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: 'pointer',
+                marginTop: '20px'
+              }}
+            >
+              Go Home
+            </button>
+          </div>
+        } />
+        
+        <Route path="/contact" element={
+          <div style={{ padding: 20, textAlign: 'center' }}>
+            <h2>Contact Us Coming Soon</h2>
+            <button 
+              onClick={() => window.location.href = '/'}
+              style={{
+                padding: '10px 20px',
+                backgroundColor: '#1976d2',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: 'pointer',
+                marginTop: '20px'
+              }}
+            >
+              Go Home
+            </button>
+          </div>
+        } />
 
         {/* 404 Route */}
         <Route path="*" element={

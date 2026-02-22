@@ -16,7 +16,8 @@ import {
   ListItemText,
   Divider,
   Badge,
-  Tooltip
+  Tooltip,
+  ListItemAvatar
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -31,13 +32,27 @@ import {
   PersonAdd as PersonAddIcon,
   Notifications as NotificationsIcon,
   Settings as SettingsIcon,
-  Home as HomeIcon
+  Home as HomeIcon,
+  Grade as GradeIcon,
+  NewReleases as NewIcon,
+  CheckCircle as CheckCircleIcon,
+  Schedule as ScheduleIcon,
+  Delete as DeleteIcon
 } from '@mui/icons-material';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext'; // Correct path
+import { useAuth } from '../../context/AuthContext';
+import { useNotifications } from '../../context/NotificationContext';
 
 const Navbar = () => {
   const { user, isAuthenticated, logout, isTeacher, isStudent } = useAuth();
+  const { 
+    notifications, 
+    unreadCount, 
+    markAsRead, 
+    markAllAsRead, 
+    clearAll 
+  } = useNotifications();
+  
   const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -57,6 +72,14 @@ const Navbar = () => {
 
   const handleNotificationsClose = () => {
     setNotificationsAnchor(null);
+  };
+
+  const handleNotificationClick = (notification) => {
+    markAsRead(notification.id);
+    if (notification.action) {
+      navigate(notification.action);
+    }
+    handleNotificationsClose();
   };
 
   const handleLogout = () => {
@@ -81,6 +104,19 @@ const Navbar = () => {
     { text: 'Assignments', icon: <AssignmentIcon />, path: '/assignments', protected: true },
     { text: 'Discussions', icon: <ForumIcon />, path: '/discussions', protected: true },
   ];
+
+  const getNotificationIcon = (type) => {
+    switch(type) {
+      case 'grading':
+        return <GradeIcon color="warning" />;
+      case 'new_assignment':
+        return <NewIcon color="info" />;
+      case 'grade_posted':
+        return <CheckCircleIcon color="success" />;
+      default:
+        return <ScheduleIcon color="action" />;
+    }
+  };
 
   const drawerContent = (
     <Box sx={{ width: 250 }} role="presentation" onClick={toggleMobileMenu}>
@@ -179,7 +215,7 @@ const Navbar = () => {
                 {/* Notifications */}
                 <Tooltip title="Notifications">
                   <IconButton color="inherit" onClick={handleNotificationsOpen}>
-                    <Badge badgeContent={3} color="error">
+                    <Badge badgeContent={unreadCount} color="error">
                       <NotificationsIcon />
                     </Badge>
                   </IconButton>
@@ -256,51 +292,104 @@ const Navbar = () => {
         </Toolbar>
       </AppBar>
 
-      {/* Notifications Menu */}
+      {/* Notifications Menu - Role Based */}
       <Menu
         anchorEl={notificationsAnchor}
         open={Boolean(notificationsAnchor)}
         onClose={handleNotificationsClose}
         PaperProps={{
-          sx: { width: 320, maxHeight: 400 }
+          sx: { 
+            width: 400, 
+            maxHeight: 500,
+            overflow: 'auto'
+          }
         }}
       >
-        <Box sx={{ p: 2 }}>
-          <Typography variant="subtitle2" gutterBottom>
-            Notifications
-          </Typography>
-          <Divider />
-          <MenuItem>
-            <Box sx={{ py: 1 }}>
-              <Typography variant="body2" fontWeight="bold">
-                New Assignment
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Mathematics 101 - Due in 2 days
-              </Typography>
+        <Box sx={{ p: 2, bgcolor: 'primary.main', color: 'white' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="subtitle1" fontWeight="bold">
+              Notifications {isTeacher ? '👨‍🏫' : '👩‍🎓'}
+            </Typography>
+            <Box>
+              {notifications.length > 0 && (
+                <>
+                  <Button 
+                    size="small" 
+                    sx={{ color: 'white', mr: 1 }}
+                    onClick={markAllAsRead}
+                  >
+                    Mark all read
+                  </Button>
+                  <Button 
+                    size="small" 
+                    sx={{ color: 'white' }}
+                    onClick={clearAll}
+                  >
+                    Clear all
+                  </Button>
+                </>
+              )}
             </Box>
-          </MenuItem>
-          <MenuItem>
-            <Box sx={{ py: 1 }}>
-              <Typography variant="body2" fontWeight="bold">
-                Grade Posted
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Your assignment has been graded
-              </Typography>
-            </Box>
-          </MenuItem>
-          <MenuItem>
-            <Box sx={{ py: 1 }}>
-              <Typography variant="body2" fontWeight="bold">
-                New Discussion
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                John commented on your post
-              </Typography>
-            </Box>
-          </MenuItem>
+          </Box>
         </Box>
+        
+        <Divider />
+
+        {notifications.length === 0 ? (
+          <Box sx={{ p: 4, textAlign: 'center' }}>
+            <NotificationsIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
+            <Typography color="text.secondary">
+              No notifications
+            </Typography>
+          </Box>
+        ) : (
+          notifications.map((notification) => (
+            <MenuItem 
+              key={notification.id} 
+              onClick={() => handleNotificationClick(notification)}
+              sx={{
+                backgroundColor: notification.read ? 'transparent' : 'rgba(25, 118, 210, 0.05)',
+                borderLeft: notification.read ? 'none' : '4px solid #1976d2',
+                '&:hover': {
+                  backgroundColor: 'rgba(0,0,0,0.04)'
+                }
+              }}
+            >
+              <ListItemAvatar>
+                <Avatar sx={{ bgcolor: 'transparent' }}>
+                  {getNotificationIcon(notification.type)}
+                </Avatar>
+              </ListItemAvatar>
+              <Box sx={{ flex: 1 }}>
+                <Typography variant="subtitle2" fontWeight="bold">
+                  {notification.title}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                  {notification.message}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {new Date(notification.timestamp).toLocaleString()}
+                </Typography>
+              </Box>
+            </MenuItem>
+          ))
+        )}
+
+        {isTeacher && notifications.filter(n => n.type === 'grading').length > 0 && (
+          <Box sx={{ p: 2, bgcolor: '#fff3e0' }}>
+            <Typography variant="body2" color="warning.dark">
+              ⚠️ You have pending assignments to grade
+            </Typography>
+          </Box>
+        )}
+
+        {isStudent && notifications.filter(n => n.type === 'new_assignment').length > 0 && (
+          <Box sx={{ p: 2, bgcolor: '#e3f2fd' }}>
+            <Typography variant="body2" color="info.dark">
+              📚 New assignments available
+            </Typography>
+          </Box>
+        )}
       </Menu>
 
       {/* Mobile Drawer */}

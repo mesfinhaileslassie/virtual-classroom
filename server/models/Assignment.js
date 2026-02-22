@@ -1,4 +1,3 @@
-// Assignment model 
 const mongoose = require('mongoose');
 
 const submissionSchema = new mongoose.Schema({
@@ -71,7 +70,8 @@ const assignmentSchema = new mongoose.Schema({
     type: Number,
     required: [true, 'Please add total points'],
     min: 0,
-    max: 1000
+    max: 1000,
+    default: 100
   },
   attachments: [{
     fileName: String,
@@ -90,14 +90,14 @@ const assignmentSchema = new mongoose.Schema({
   },
   latePenalty: {
     type: Number,
-    default: 0, // Percentage to deduct
+    default: 0,
     min: 0,
     max: 100
   },
   status: {
     type: String,
     enum: ['draft', 'published', 'archived'],
-    default: 'draft'
+    default: 'published'
   },
   submissions: [submissionSchema],
   totalSubmissions: {
@@ -107,31 +107,26 @@ const assignmentSchema = new mongoose.Schema({
   gradedCount: {
     type: Number,
     default: 0
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now
   }
 }, {
   timestamps: true
 });
 
-// Update counts when submissions change
-assignmentSchema.pre('save', function(next) {
+// Remove any pre-save hooks - we'll handle counts with virtuals or methods if needed
+// Instead of pre-save hooks, let's use a method to update counts
+assignmentSchema.methods.updateCounts = function() {
   if (this.submissions) {
     this.totalSubmissions = this.submissions.length;
     this.gradedCount = this.submissions.filter(s => s.grade !== undefined).length;
   }
-  next();
-});
+  return this;
+};
 
 // Check if submission is late
 assignmentSchema.methods.isLate = function(submissionDate) {
   return submissionDate > this.dueDate;
 };
+
+// Make sure to remove any existing pre-save hooks by not defining them
 
 module.exports = mongoose.model('Assignment', assignmentSchema);

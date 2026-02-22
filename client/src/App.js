@@ -7,7 +7,7 @@ import CssBaseline from '@mui/material/CssBaseline';
 // Context
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { DiscussionProvider } from './context/DiscussionContext';
-import { AssignmentProvider } from './context/AssignmentContext'; // Add this
+import { AssignmentProvider } from './context/AssignmentContext';
 
 // Layout
 import Navbar from './components/layout/Navbar';
@@ -25,7 +25,7 @@ import StudentDashboard from './pages/StudentDashboard';
 // Discussion Components
 import DiscussionThread from './components/discussions/DiscussionThread';
 
-// Assignment Components (we'll create these next)
+// Assignment Components
 import AssignmentList from './components/assignments/AssignmentList';
 import AssignmentDetail from './components/assignments/AssignmentDetail';
 import AssignmentForm from './components/assignments/AssignmentForm';
@@ -137,6 +137,7 @@ function AppContent() {
           </ProtectedRoute>
         } />
         
+        {/* IMPORTANT: This route uses :classId parameter */}
         <Route path="/assignments/create/:classId" element={
           <ProtectedRoute allowedRoles={['teacher', 'admin']}>
             <AssignmentForm />
@@ -160,10 +161,10 @@ function App() {
       <Router>
         <AuthProvider>
           <DiscussionProvider>
-            <AssignmentProvider>  {/* Add AssignmentProvider here */}
+            <AssignmentProvider>
               <Toaster position="top-right" />
               <AppContent />
-            </AssignmentProvider>  {/* Close AssignmentProvider */}
+            </AssignmentProvider>
           </DiscussionProvider>
         </AuthProvider>
       </Router>

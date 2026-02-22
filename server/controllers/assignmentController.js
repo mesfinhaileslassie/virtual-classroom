@@ -8,47 +8,84 @@ const User = require('../models/User');
 // @access  Private (Teachers only)
 const createAssignment = async (req, res) => {
   try {
+    console.log('📝 Creating assignment with data:', JSON.stringify(req.body, null, 2));
+    console.log('👤 User:', req.user._id);
+
     const { title, description, instructions, classId, dueDate, points, rubric, allowLateSubmission, latePenalty } = req.body;
 
-    // Check if class exists and user is the teacher
+    // Validate required fields
+    const errors = [];
+    if (!title) errors.push('title');
+    if (!description) errors.push('description');
+    if (!instructions) errors.push('instructions');
+    if (!classId) errors.push('classId');
+    if (!dueDate) errors.push('dueDate');
+
+    if (errors.length > 0) {
+      console.log('❌ Missing required fields:', errors);
+      return res.status(400).json({
+        success: false,
+        error: `Missing required fields: ${errors.join(', ')}`
+      });
+    }
+
+    console.log('🔍 Looking for class with ID:', classId);
+
+    // Check if class exists
     const classItem = await Class.findById(classId);
+    
     if (!classItem) {
+      console.log('❌ Class not found with ID:', classId);
       return res.status(404).json({
         success: false,
         error: 'Class not found'
       });
     }
 
-    // Verify user is the teacher of this class or admin
+    console.log('✅ Class found:', classItem.name);
+    console.log('👨‍🏫 Class teacher:', classItem.teacherId.toString());
+    console.log('👤 Current user:', req.user._id.toString());
+
+    // Check authorization
     if (classItem.teacherId.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+      console.log('❌ User not authorized');
       return res.status(403).json({
         success: false,
         error: 'Not authorized to create assignments for this class'
       });
     }
 
-    const assignment = await Assignment.create({
+    // Create assignment
+    const assignmentData = {
       title,
       description,
       instructions,
       classId,
       teacherId: req.user._id,
-      dueDate,
-      points,
+      dueDate: new Date(dueDate),
+      points: points || 100,
       rubric: rubric || [],
       allowLateSubmission: allowLateSubmission || false,
       latePenalty: latePenalty || 0,
       status: 'published'
-    });
+    };
+
+    console.log('📄 Creating assignment with data:', assignmentData);
+
+    const assignment = await Assignment.create(assignmentData);
+    console.log('✅ Assignment created successfully with ID:', assignment._id);
 
     res.status(201).json({
       success: true,
       data: assignment
     });
   } catch (error) {
+    console.error('❌ Create assignment error:', error);
+    console.error('❌ Error stack:', error.stack);
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 };

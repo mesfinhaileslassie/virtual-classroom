@@ -65,9 +65,7 @@ const createClass = async (req, res) => {
 const getClasses = async (req, res) => {
   try {
     let classes;
-    let query = {};
 
-    // Filter based on user role
     if (req.user.role === 'admin') {
       // Admin sees all classes
       classes = await Class.find({})
@@ -456,7 +454,7 @@ const getClassStats = async (req, res) => {
       });
     }
 
-    // Get additional stats (you can expand this with assignments, submissions, etc.)
+    // Get additional stats
     const stats = {
       totalStudents: classItem.students.length,
       className: classItem.name,

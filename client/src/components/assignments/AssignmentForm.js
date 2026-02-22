@@ -28,7 +28,12 @@ import { useAssignments } from '../../context/AssignmentContext';
 import toast from 'react-hot-toast';
 
 const AssignmentForm = () => {
-  const { id, classId } = useParams();
+  // Get URL parameters
+  const params = useParams();
+  console.log('🔍 PARAMS OBJECT:', params);
+  console.log('🔍 params.classId:', params.classId);
+  console.log('🔍 params.id:', params.id);
+  
   const navigate = useNavigate();
   const { user } = useAuth();
   const {
@@ -39,7 +44,14 @@ const AssignmentForm = () => {
     loading
   } = useAssignments();
 
+  // Extract parameters
+  const classId = params.classId;
+  const id = params.id;
   const isEditMode = !!id;
+
+  console.log('📌 Extracted classId:', classId, '| type:', typeof classId, '| value:', classId);
+  console.log('📌 Extracted id:', id, '| type:', typeof id, '| value:', id);
+  console.log('📌 isEditMode:', isEditMode);
 
   // Helper function to get default due date (7 days from now)
   const getDefaultDueDate = () => {
@@ -79,14 +91,38 @@ const AssignmentForm = () => {
 
   const [attachments, setAttachments] = useState([]);
 
+  // Redirect if no classId and not in edit mode
   useEffect(() => {
+    console.log('🔄 useEffect - Checking classId availability');
+    console.log('  - isEditMode:', isEditMode);
+    console.log('  - classId:', classId);
+    
+    if (!isEditMode && !classId) {
+      console.error('❌ No classId provided and not in edit mode');
+      toast.error('No class specified');
+      navigate('/classes');
+    }
+  }, [isEditMode, classId, navigate]);
+
+  // Fetch assignment if in edit mode
+  useEffect(() => {
+    console.log('🔄 useEffect - Fetching assignment if edit mode');
+    console.log('  - isEditMode:', isEditMode);
+    console.log('  - id:', id);
+    
     if (isEditMode && id) {
+      console.log('📡 Fetching assignment with ID:', id);
       getAssignmentById(id);
     }
-  }, [isEditMode, id]);
+  }, [isEditMode, id, getAssignmentById]);
 
+  // Update form when currentAssignment changes
   useEffect(() => {
+    console.log('🔄 useEffect - currentAssignment changed');
+    console.log('  - currentAssignment:', currentAssignment);
+    
     if (isEditMode && currentAssignment) {
+      console.log('📝 Populating form with assignment data');
       setFormData({
         title: currentAssignment.title || '',
         description: currentAssignment.description || '',
@@ -139,9 +175,40 @@ const AssignmentForm = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log('📝📝📝 FORM SUBMITTED 📝📝📝');
+    console.log('Form data before processing:', formData);
 
-    // Validate form
+    // Get classId from multiple possible sources
+    let targetClassId = classId;
+    console.log('📍 Initial targetClassId from URL:', targetClassId);
+    
+    if (!targetClassId && isEditMode && currentAssignment) {
+      targetClassId = currentAssignment.classId?._id || currentAssignment.classId;
+      console.log('📍 targetClassId from currentAssignment:', targetClassId);
+    }
+
+    console.log('📍 Final targetClassId:', targetClassId);
+    console.log('📍 targetClassId type:', typeof targetClassId);
+    console.log('📍 targetClassId length:', targetClassId?.length);
+
+    // Validate classId
+    if (!targetClassId) {
+      console.error('❌ CRITICAL: targetClassId is undefined or null');
+      console.error('  - URL classId:', classId);
+      console.error('  - isEditMode:', isEditMode);
+      console.error('  - currentAssignment:', currentAssignment);
+      toast.error('Class ID is missing. Please go back to the class page and try again.');
+      return;
+    }
+
+    // Validate form fields
     if (!formData.title || !formData.description || !formData.instructions || !formData.dueDate) {
+      console.error('❌ Missing required fields:', {
+        title: !!formData.title,
+        description: !!formData.description,
+        instructions: !!formData.instructions,
+        dueDate: !!formData.dueDate
+      });
       toast.error('Please fill in all required fields');
       return;
     }
@@ -155,21 +222,39 @@ const AssignmentForm = () => {
 
     // Prepare data
     const assignmentData = {
-      ...formData,
-      classId: classId || currentAssignment?.classId?._id || currentAssignment?.classId,
+      title: formData.title,
+      description: formData.description,
+      instructions: formData.instructions,
+      classId: targetClassId,
       dueDate: new Date(formData.dueDate).toISOString(),
-      rubric: formData.rubric.filter(item => item.criterion.trim() !== '') // Remove empty rubric items
+      points: parseInt(formData.points) || 100,
+      rubric: formData.rubric.filter(item => item.criterion.trim() !== ''),
+      allowLateSubmission: formData.allowLateSubmission,
+      latePenalty: parseInt(formData.latePenalty) || 0,
+      status: formData.status
     };
+
+    console.log('📦 Submitting assignment data:', assignmentData);
+    console.log('📦 classId in submission:', assignmentData.classId);
+    console.log('📦 classId type:', typeof assignmentData.classId);
+    console.log('📦 classId value:', assignmentData.classId);
 
     let result;
     if (isEditMode) {
+      console.log('✏️ Updating assignment with ID:', id);
       result = await updateAssignment(id, assignmentData);
     } else {
+      console.log('➕ Creating new assignment');
       result = await createAssignment(assignmentData);
     }
 
-    if (result.success) {
-      navigate(`/classes/${classId || currentAssignment?.classId?._id}`);
+    console.log('📨 Submission result:', result);
+
+    if (result?.success) {
+      console.log('✅ Assignment saved successfully, navigating to class:', targetClassId);
+      navigate(`/classes/${targetClassId}`);
+    } else {
+      console.error('❌ Failed to save assignment:', result?.error);
     }
   };
 
@@ -183,6 +268,19 @@ const AssignmentForm = () => {
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
+      {/* Debug Info Banner */}
+      <Paper sx={{ p: 2, mb: 2, bgcolor: '#f0f0f0' }}>
+        <Typography variant="body2">
+          <strong>Debug:</strong> 
+          Class ID from URL: {classId || 'undefined'} | 
+          Edit Mode: {isEditMode ? '✅' : '❌'} | 
+          Assignment ID: {id || 'none'}
+        </Typography>
+        <Typography variant="body2" color="primary">
+          URL: {window.location.href}
+        </Typography>
+      </Paper>
+
       <Paper sx={{ p: 4 }}>
         <Typography variant="h4" gutterBottom>
           {isEditMode ? 'Edit Assignment' : 'Create New Assignment'}

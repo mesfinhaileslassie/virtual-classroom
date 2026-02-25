@@ -165,30 +165,36 @@ const StudentDashboard = () => {
     }
   };
 
-  // Navigation handlers
-  const handleViewAllClasses = () => {
-    navigate('/classes');
-  };
+// Navigation handlers
+const handleViewAllClasses = () => {
+  console.log('📋 Clicked: View All Classes - navigating to /classes');
+  navigate('/classes');
+};
 
-  const handleViewResults = () => {
-    navigate('/student/results');
-  };
+const handleViewResults = () => {
+  console.log('📊 Clicked: View Results - navigating to /student/results');
+  navigate('/student/results');
+};
 
-  const handleViewAllAssignments = () => {
-    navigate('/assignments');
-  };
+const handleViewAllAssignments = () => {
+  console.log('📝 Clicked: View All Assignments - navigating to /assignments');
+  navigate('/assignments');
+};
 
-  const handleViewDiscussions = () => {
-    navigate('/discussions');
-  };
+const handleViewDiscussions = () => {
+  console.log('💬 Clicked: Discussions - navigating to /discussions');
+  navigate('/discussions');
+};
 
-  const handleClassClick = (classId) => {
-    navigate(`/classes/${classId}`);
-  };
+const handleClassClick = (classId) => {
+  console.log('🏫 Clicked: Class - navigating to /classes/' + classId);
+  navigate(`/classes/${classId}`);
+};
 
-  const handleAssignmentClick = (assignmentId) => {
-    navigate(`/assignments/${assignmentId}`);
-  };
+const handleAssignmentClick = (assignmentId) => {
+  console.log('📄 Clicked: Assignment - navigating to /assignments/' + assignmentId);
+  navigate(`/assignments/${assignmentId}`);
+};
 
   if (loadingData) {
     return (

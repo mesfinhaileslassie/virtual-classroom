@@ -39,8 +39,19 @@ const Login = () => {
     const result = await login(formData);
     
     if (result.success) {
-      // Redirect based on role - will be handled by App.js
-      navigate('/classes');
+      // Get user role from the result
+      const userRole = result.data?.role;
+      
+      console.log('✅ Login successful! User role:', userRole);
+      
+      // Redirect based on role
+      if (userRole === 'student') {
+        navigate('/student/dashboard');
+      } else if (userRole === 'teacher') {
+        navigate('/teacher/dashboard');
+      } else {
+        navigate('/classes');
+      }
     } else {
       setError(result.error || 'Login failed');
     }

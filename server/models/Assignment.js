@@ -127,6 +127,4 @@ assignmentSchema.methods.isLate = function(submissionDate) {
   return submissionDate > this.dueDate;
 };
 
-// Make sure to remove any existing pre-save hooks by not defining them
-
 module.exports = mongoose.model('Assignment', assignmentSchema);

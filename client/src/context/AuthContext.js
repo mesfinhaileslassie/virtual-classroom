@@ -46,7 +46,7 @@ export const AuthProvider = ({ children }) => {
       setToken(token);
       setUser(userData_);
       toast.success('Registration successful!');
-      return { success: true };
+      return { success: true, data: userData_ };
     } catch (error) {
       toast.error(error.response?.data?.error || 'Registration failed');
       return { success: false, error: error.response?.data?.error };
@@ -61,7 +61,7 @@ export const AuthProvider = ({ children }) => {
       setToken(token);
       setUser(userData);
       toast.success('Login successful!');
-      return { success: true };
+      return { success: true, data: userData };  // ← FIXED: returns user data
     } catch (error) {
       toast.error(error.response?.data?.error || 'Login failed');
       return { success: false, error: error.response?.data?.error };

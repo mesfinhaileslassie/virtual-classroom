@@ -2,8 +2,12 @@ import React from 'react';
 import { Box, Container } from '@mui/material';
 import Navbar from './Navbar';
 import Footer from './Footer';
+import NavigationBreadcrumbs from '../common/NavigationBreadcrumbs';
+import { useAuth } from '../../context/AuthContext';
 
 const Layout = ({ children }) => {
+  const { isAuthenticated } = useAuth();
+
   return (
     <Box
       sx={{
@@ -23,6 +27,7 @@ const Layout = ({ children }) => {
           flexDirection: 'column'
         }}
       >
+        {isAuthenticated && <NavigationBreadcrumbs />}
         {children}
       </Container>
       <Footer />

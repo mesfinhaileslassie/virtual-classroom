@@ -13,15 +13,21 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Alert,
   Chip,
-  Box
+  Box,
+  Alert,
+  CircularProgress
 } from '@mui/material';
+import {
+  School as SchoolIcon,
+  Group as GroupIcon,
+  Add,
+  ExitToApp as LeaveIcon,
+  Dashboard as DashboardIcon
+} from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { classAPI } from '../services/api';
-import SchoolIcon from '@mui/icons-material/School';
-import GroupIcon from '@mui/icons-material/Group';
 import toast from 'react-hot-toast';
 
 const Classes = () => {
@@ -94,8 +100,8 @@ const Classes = () => {
 
   if (loading) {
     return (
-      <Container>
-        <Typography>Loading...</Typography>
+      <Container sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+        <CircularProgress />
       </Container>
     );
   }
@@ -103,9 +109,34 @@ const Classes = () => {
   return (
     <Container maxWidth="lg">
       <Box sx={{ mt: 4, mb: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
-          Classes
-        </Typography>
+        {/* Header with Back to Dashboard button */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+          <Typography variant="h4" component="h1">
+            Classes
+          </Typography>
+          
+          {isStudent && (
+            <Button
+              variant="outlined"
+              startIcon={<DashboardIcon />}
+              onClick={() => navigate('/student/dashboard')}
+              sx={{ ml: 2 }}
+            >
+              Back to Dashboard
+            </Button>
+          )}
+          
+          {isTeacher && (
+            <Button
+              variant="outlined"
+              startIcon={<DashboardIcon />}
+              onClick={() => navigate('/teacher/dashboard')}
+              sx={{ ml: 2 }}
+            >
+              Back to Dashboard
+            </Button>
+          )}
+        </Box>
 
         {/* Action Buttons */}
         <Grid container spacing={2} sx={{ mb: 4 }}>
@@ -114,7 +145,7 @@ const Classes = () => {
               <Button
                 variant="contained"
                 onClick={() => setOpenDialog(true)}
-                startIcon={<SchoolIcon />}
+                startIcon={<Add />}
               >
                 Create New Class
               </Button>
@@ -127,12 +158,12 @@ const Classes = () => {
                 label="Enter Class Code"
                 value={classCode}
                 onChange={(e) => setClassCode(e.target.value)}
-                sx={{ mr: 1 }}
+                sx={{ mr: 1, width: 200 }}
               />
               <Button
                 variant="contained"
                 onClick={handleEnrollClass}
-                startIcon={<GroupIcon />}
+                startIcon={<SchoolIcon />}
               >
                 Join Class
               </Button>
@@ -143,8 +174,11 @@ const Classes = () => {
         {/* Classes Grid */}
         {classes.length === 0 ? (
           <Paper sx={{ p: 4, textAlign: 'center' }}>
-            <Typography variant="h6" color="text.secondary">
+            <SchoolIcon sx={{ fontSize: 60, color: 'text.secondary', mb: 2 }} />
+            <Typography variant="h6" color="text.secondary" gutterBottom>
               No classes found.
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
               {isTeacher && ' Click "Create New Class" to get started!'}
               {isStudent && ' Use a class code to join a class.'}
             </Typography>
@@ -161,25 +195,28 @@ const Classes = () => {
                     <Typography variant="body2" color="text.secondary" paragraph>
                       {classItem.description}
                     </Typography>
-                    <Chip
-                      label={`Code: ${classItem.classCode}`}
-                      size="small"
-                      sx={{ mr: 1, mb: 1 }}
-                    />
-                    <Chip
-                      label={classItem.subject}
-                      size="small"
-                      sx={{ mr: 1, mb: 1 }}
-                    />
-                    <Chip
-                      label={classItem.semester}
-                      size="small"
-                      sx={{ mb: 1 }}
-                    />
-                    <Typography variant="body2" sx={{ mt: 1 }}>
+                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
+                      <Chip
+                        label={`Code: ${classItem.classCode}`}
+                        size="small"
+                        color="primary"
+                        variant="outlined"
+                      />
+                      <Chip
+                        label={classItem.subject}
+                        size="small"
+                        variant="outlined"
+                      />
+                      <Chip
+                        label={classItem.semester}
+                        size="small"
+                        variant="outlined"
+                      />
+                    </Box>
+                    <Typography variant="body2" color="text.secondary">
                       Teacher: {classItem.teacherId?.name || 'Unknown'}
                     </Typography>
-                    <Typography variant="body2">
+                    <Typography variant="body2" color="text.secondary">
                       Students: {classItem.students?.length || 0}
                     </Typography>
                   </CardContent>
@@ -194,6 +231,7 @@ const Classes = () => {
                       <Button
                         size="small"
                         color="error"
+                        startIcon={<LeaveIcon />}
                         onClick={() => handleLeaveClass(classItem._id)}
                       >
                         Leave
